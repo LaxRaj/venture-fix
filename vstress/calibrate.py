@@ -183,6 +183,39 @@ def _fmt_p(value: float) -> str:
     return f"{value:.3f}"
 
 
+def result_label(r: QuestionResult) -> str:
+    """Short outcome for a question: KEEP, or the first gate it failed."""
+    if r.survives:
+        return "KEEP"
+    if r.raw_pass and not r.perm_pass:
+        return "drop: chance"
+    if r.raw_pass and not r.bh_pass:
+        return "drop: BH"
+    if r.raw_pass and not r.holdout_pass:
+        return "drop: holdout"
+    if r.raw_pass:
+        return "drop: gate"
+    return "below raw AUC"
+
+
+def failure_reason(r: QuestionResult) -> str:
+    """Plain-language reason a question was dropped, with the numbers."""
+    if r.survives:
+        return "passed all four gates"
+    if not r.raw_pass:
+        return (f"discovery AUC {r.discovery_auc:.3f} is below the "
+                f"{RAW_AUC_CUTOFF:.2f} raw cutoff")
+    if not r.perm_pass:
+        return f"permutation p {r.p_value:.3f} > 0.05: indistinguishable from chance"
+    if not r.bh_pass:
+        return (f"BH-adjusted p {r.bh_adjusted:.3f} > {BH_Q}: "
+                "does not survive testing the whole bank")
+    if not r.holdout_pass:
+        return (f"holdout AUC {r.holdout_auc:.3f} is below {HOLDOUT_AUC_CUTOFF:.2f}: "
+                "did not replicate on held-out ventures")
+    return "failed a gate"
+
+
 def render_report(provider: Provider,
                   results: Sequence[QuestionResult]) -> str:
     coverage = {family: 0 for family in GATES}
@@ -216,18 +249,7 @@ def render_report(provider: Provider,
                  f"{'AUC':>6} {'p':>6} {'BH':>6} {'hold':>6}  result")
     lines.append("-" * 96)
     for r in results:
-        if r.survives:
-            result = "KEEP"
-        elif r.raw_pass and not r.perm_pass:
-            result = "drop: chance"
-        elif r.raw_pass and not r.bh_pass:
-            result = "drop: BH"
-        elif r.raw_pass and not r.holdout_pass:
-            result = "drop: holdout"
-        elif r.raw_pass:
-            result = "drop: gate"
-        else:
-            result = "below raw AUC"
+        result = result_label(r)
         lines.append(
             f"{r.id[:24]:24} {r.family:10} {(r.maps_to or 'diagnostic')[:14]:14} "
             f"{r.discovery_auc:>6.3f} {_fmt_p(r.p_value):>6} {r.bh_adjusted:>6.3f} "

@@ -121,6 +121,15 @@ combine("REACHABLE", "garbage-from-timeout") == "REACHABLE"            # fails o
           data-view="calibration"
           tabindex="-1"
         >Calibration</button>
+        <button
+          class="tab"
+          id="tab-runs"
+          role="tab"
+          aria-selected="false"
+          aria-controls="view-runs"
+          data-view="runs"
+          tabindex="-1"
+        >Runs</button>
       </nav>
 
       <section
@@ -389,6 +398,41 @@ combine("REACHABLE", "garbage-from-timeout") == "REACHABLE"            # fails o
           </details>
         </div>
       </section>
+
+      <section
+        class="view"
+        id="view-runs"
+        role="tabpanel"
+        aria-labelledby="tab-runs"
+        tabindex="0"
+        hidden
+      >
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">05 / Runs</p>
+            <h2>What happened, and why things failed</h2>
+            <p class="lede">Every calibration run. Pick one to see why each question was dropped and what the model answered for each labelled venture against its label.</p>
+          </div>
+        </div>
+
+        <div id="runs-empty" class="state" hidden>
+          <h3>No runs saved yet</h3>
+          <p>Start a run on the Calibration tab. It will appear here with per-venture answers.</p>
+        </div>
+        <div id="runs-error" class="state error" hidden>
+          <h3>Could not load runs</h3>
+          <p id="runs-error-text"></p>
+          <button class="button-secondary" id="runs-retry" type="button">Try again</button>
+        </div>
+
+        <div id="runs-content" class="runs-layout" hidden>
+          <aside class="runs-list" aria-label="Run history">
+            <ul id="runs-history"></ul>
+          </aside>
+          <div class="runs-detail" id="runs-detail"></div>
+        </div>
+      </section>
+
     </main>
 
     <footer class="site-footer">

@@ -16,7 +16,6 @@
   const dateTime = new Intl.DateTimeFormat(undefined, {
     dateStyle: "medium",
     timeStyle: "short",
-    timeZoneName: "short",
   });
 
   const state = {
@@ -24,6 +23,10 @@
     field: null,
     latest: null,
     filter: "all",
+    runs: null,
+    runId: null,
+    ventureFilter: "all",
+    openVenture: null,
     view: "board",
     job: null,
     pollTimer: null,
@@ -152,7 +155,7 @@
   /* Tabs ----------------------------------------------------------------- */
 
   function activateView(name, updateHash = true) {
-    if (!["board", "brief", "field", "calibration"].includes(name)) return;
+    if (!["board", "brief", "field", "calibration", "runs"].includes(name)) return;
     state.view = name;
     $$(".tab").forEach((tab) => {
       const active = tab.dataset.view === name;
@@ -290,7 +293,10 @@
         "td",
         { class: "venture-cell" },
         h("span", { class: "venture-name" }, row.name),
-        h("span", { class: "venture-sub" }, `pool ${row.buyers_display}`)
+        h("span", { class: "venture-sub" }, `pool ${row.buyers_display}`),
+        row.verdict !== "REACHABLE" && row.why
+          ? h("span", { class: "venture-why" }, row.why.detail)
+          : null
       ),
       h("td", { class: "num" }, row.price_display),
       h(
@@ -853,6 +859,8 @@
           renderCalibration(job.result);
           statusDone(job.result);
           updateKeptKpi(job.result);
+          state.runId = job.result.id;
+          loadRuns();
           return;
         }
         setBusy(false);
@@ -905,12 +913,309 @@
     });
   }
 
+
+  /* Runs ----------------------------------------------------------------- */
+
+  async function loadRuns() {
+    try {
+      const data = await getJSON("/api/runs");
+      state.runs = data.runs;
+      show($("#runs-error"), false);
+      if (!state.runs.length) {
+        show($("#runs-empty"), true);
+        show($("#runs-content"), false);
+        return;
+      }
+      show($("#runs-empty"), false);
+      show($("#runs-content"), true);
+      if (!state.runs.some((r) => r.id === state.runId)) state.runId = state.runs[0].id;
+      renderRunList();
+      await selectRun(state.runId);
+    } catch (error) {
+      show($("#runs-empty"), false);
+      show($("#runs-content"), false);
+      show($("#runs-error"), true);
+      $("#runs-error-text").textContent = error.message;
+    }
+  }
+
+  function renderRunList() {
+    const list = $("#runs-history");
+    clear(list);
+    for (const run of state.runs) {
+      const kept = run.summary ? run.summary.kept : "?";
+      const raw = run.summary ? run.summary.raw : "?";
+      list.append(
+        h(
+          "li",
+          {},
+          h(
+            "button",
+            {
+              type: "button",
+              class: "run-item",
+              "aria-current": String(run.id === state.runId),
+              onClick: () => selectRun(run.id),
+            },
+            h("strong", {}, run.provider || "run"),
+            h("span", { class: "run-sub" }, run.generated_at ? fmtDate(run.generated_at) : run.id),
+            h("span", { class: `run-kept ${kept ? "keep" : "none"}` }, `${kept} kept · ${raw} cleared raw AUC`),
+            run.has_ventures ? null : h("span", { class: "run-sub" }, "older run: no venture detail")
+          )
+        )
+      );
+    }
+  }
+
+  async function selectRun(id) {
+    state.runId = id;
+    state.openVenture = null;
+    renderRunList();
+    const detail = $("#runs-detail");
+    clear(detail);
+    detail.append(h("p", { class: "run-sub" }, "Loading run…"));
+    try {
+      const run = await getJSON(`/api/runs/${id}`);
+      renderRunDetail(run);
+    } catch (error) {
+      clear(detail);
+      detail.append(h("div", { class: "state error" }, h("h3", {}, "Could not load this run"), h("p", {}, error.message)));
+    }
+  }
+
+  function renderRunDetail(run) {
+    const detail = $("#runs-detail");
+    clear(detail);
+    const questions = run.questions || [];
+    const qById = Object.fromEntries(questions.map((q) => [q.id, q]));
+    const dropped = run.results.filter((r) => !r.survives);
+
+    detail.append(
+      h(
+        "div",
+        { class: "run-summary" },
+        h("h3", {}, `${run.provider} run ${run.id}`),
+        h(
+          "p",
+          {},
+          `${run.results.length} questions: ${run.summary.raw} cleared raw AUC, ${run.summary.permutation} cleared the permutation test, ${run.summary.bh} cleared BH, ${run.summary.kept} replicated on holdout. `,
+          dropped.length ? `${dropped.length} dropped, reasons below.` : "Nothing dropped."
+        ),
+        run.stub_verdict ? h("p", { class: "run-stub" }, `Stub check: ${run.stub_verdict}`) : null
+      )
+    );
+
+    const qRows = run.results
+      .slice()
+      .sort((a, b) => b.discovery_auc - a.discovery_auc)
+      .map((r) =>
+        h(
+          "tr",
+          {},
+          h(
+            "td",
+            { class: "venture-cell" },
+            h("span", { class: "venture-name" }, r.id),
+            h("span", { class: "venture-sub" }, qById[r.id] ? qById[r.id].text : r.family)
+          ),
+          h("td", { class: "num" }, fmtAuc(r.discovery_auc)),
+          h("td", { class: "num" }, fmtP(r.p_value)),
+          h("td", { class: "num" }, fmtAuc(r.holdout_auc)),
+          h("td", {}, h("span", { class: `result ${r.survives ? "keep" : r.raw_pass ? "drop" : ""}` }, r.label || resultLabel(r))),
+          h("td", { class: "why-cell" }, r.reason || "")
+        )
+      );
+    detail.append(
+      h("h3", { class: "runs-h" }, "Why each question was kept or dropped"),
+      h(
+        "div",
+        { class: "table-wrap" },
+        h(
+          "table",
+          { class: "runs-table" },
+          h("thead", {}, h("tr", {}, ...["Question", "AUC", "p", "Holdout", "Result", "Reason"].map((t) => h("th", { scope: "col" }, t)))),
+          h("tbody", {}, qRows)
+        )
+      )
+    );
+
+    if (!run.ventures || !run.ventures.length) {
+      detail.append(h("p", { class: "run-sub" }, "This run was saved before per-venture detail existed. Re-run it to see answers against labels."));
+      return;
+    }
+    renderVentures(detail, run, qById);
+  }
+
+  // An answer points toward "alive" when its option scores above 0.5.
+  function answerSignal(question, answer) {
+    if (!question || !answer) return null;
+    const opt = question.options.find((o) => o.key === answer.key);
+    if (!opt || opt.escape) return 0;
+    return opt.score > 0.5 ? 1 : opt.score < 0.5 ? -1 : 0;
+  }
+
+  function ventureStats(v, qById) {
+    let right = 0;
+    let wrong = 0;
+    for (const [qid, ans] of Object.entries(v.answers)) {
+      const sig = answerSignal(qById[qid], ans);
+      if (sig === null || sig === 0) continue;
+      if (sig > 0 === v.alive) right += 1;
+      else wrong += 1;
+    }
+    return { right, wrong, mispredicted: wrong > right };
+  }
+
+  function renderVentures(detail, run, qById) {
+    const filters = [
+      ["all", "All"],
+      ["dead", "Dead"],
+      ["alive", "Alive"],
+      ["mispredicted", "Mispredicted"],
+      ["holdout", "Holdout"],
+    ];
+    const kills = {};
+    run.ventures.forEach((v) => {
+      if (!v.alive) kills[v.kill_reason] = (kills[v.kill_reason] || 0) + 1;
+    });
+    const killLine = Object.entries(kills).map(([k, n]) => `${n} ${k}`).join(" · ");
+
+    const body = h("tbody", {});
+    const chips = h("div", { class: "filters", role: "group", "aria-label": "Filter ventures" });
+
+    const draw = () => {
+      clear(body);
+      let shown = 0;
+      for (const v of run.ventures) {
+        const stats = ventureStats(v, qById);
+        const f = state.ventureFilter;
+        if (f === "dead" && v.alive) continue;
+        if (f === "alive" && !v.alive) continue;
+        if (f === "mispredicted" && !stats.mispredicted) continue;
+        if (f === "holdout" && v.split !== "holdout") continue;
+        shown += 1;
+        const open = state.openVenture === v.id;
+        body.append(
+          h(
+            "tr",
+            { class: "vrow" },
+            h(
+              "td",
+              { class: "venture-cell" },
+              h(
+                "button",
+                {
+                  type: "button",
+                  class: "link-button",
+                  "aria-expanded": String(open),
+                  onClick: () => {
+                    state.openVenture = open ? null : v.id;
+                    draw();
+                  },
+                },
+                v.name
+              ),
+              h("span", { class: "venture-sub" }, `${v.id} · ${v.sector} · ${v.split}`)
+            ),
+            h("td", {}, h("span", { class: `verdict ${v.alive ? "reachable" : "dead"}` }, v.alive ? "ALIVE" : "DEAD")),
+            h("td", {}, v.kill_reason || "—"),
+            h("td", { class: "num" }, `${stats.right}`),
+            h("td", { class: `num ${stats.wrong > stats.right ? "bad" : ""}` }, `${stats.wrong}`)
+          )
+        );
+        if (open) body.append(ventureDetailRow(v, run, qById));
+      }
+      if (!shown) body.append(h("tr", {}, h("td", { colspan: 5 }, "No ventures match this filter.")));
+      $$("button", chips).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.f === state.ventureFilter)));
+    };
+
+    filters.forEach(([key, label]) =>
+      chips.append(
+        h(
+          "button",
+          {
+            type: "button",
+            class: "chip",
+            dataset: { f: key },
+            "aria-pressed": String(key === state.ventureFilter),
+            onClick: () => {
+              state.ventureFilter = key;
+              draw();
+            },
+          },
+          label
+        )
+      )
+    );
+
+    detail.append(
+      h("h3", { class: "runs-h" }, "What the model said about each venture"),
+      h(
+        "p",
+        { class: "run-sub" },
+        `${run.ventures.length} labelled ventures. Dead by label: ${killLine || "none"}. "Agrees" counts answers whose option points toward the true label; "disagrees" counts those pointing away. The escape option and 0.5-scored options count as neither.`
+      ),
+      chips,
+      h(
+        "div",
+        { class: "table-wrap" },
+        h(
+          "table",
+          { class: "runs-table" },
+          h("thead", {}, h("tr", {}, ...["Venture", "Label", "Why dead", "Agrees", "Disagrees"].map((t) => h("th", { scope: "col" }, t)))),
+          body
+        )
+      )
+    );
+    draw();
+  }
+
+  function ventureDetailRow(v, run, qById) {
+    const gate = run.confidence_gate;
+    const items = Object.entries(v.answers).map(([qid, ans]) => {
+      const q = qById[qid];
+      const opt = q ? q.options.find((o) => o.key === ans.key) : null;
+      const sig = answerSignal(q, ans);
+      const verdict = sig === 0 || sig === null ? "neutral" : sig > 0 === v.alive ? "agrees" : "disagrees";
+      return h(
+        "li",
+        { class: `ans ${verdict}` },
+        h("span", { class: "ans-q" }, qid),
+        h("span", { class: "ans-v" }, verdict),
+        h("span", { class: "ans-a" }, opt ? opt.label : ans.key),
+        h("span", { class: "ans-c" }, `conf ${ans.confidence.toFixed(2)}${gate && ans.confidence < gate ? " · below gate" : ""}`)
+      );
+    });
+    const ev = Object.entries(v.evidence || {}).map(([k, t]) => h("li", {}, h("strong", {}, `${k}: `), t));
+    return h(
+      "tr",
+      { class: "vdetail" },
+      h(
+        "td",
+        { colspan: 5 },
+        h(
+          "div",
+          { class: "vdetail-grid" },
+          h("div", {}, h("h4", {}, "Evidence the model saw"), h("ul", { class: "ev" }, ev)),
+          h("div", {}, h("h4", {}, "Its answers"), h("ul", { class: "anslist" }, items))
+        )
+      )
+    );
+  }
+
+  function bindRuns() {
+    const retry = $("#runs-retry");
+    if (retry) retry.addEventListener("click", loadRuns);
+  }
+
   function init() {
     initTabs();
     bindFilters();
     bindRetries();
     bindRunForm();
+    bindRuns();
     loadBoard();
+    loadRuns();
     loadField();
     loadLatest();
   }

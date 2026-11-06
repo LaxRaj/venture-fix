@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import threading
 import traceback
 import uuid
@@ -35,6 +36,7 @@ from vstress.data import (
     WEEKS_PER_MONTH,
     provenance_counts,
 )
+from vstress.mapping import CONFIDENCE_GATE
 from vstress.questions import ADMITTED, FAMILIES, bank_report
 
 ROOT = Path(__file__).resolve().parent
@@ -60,7 +62,7 @@ def _now() -> str:
 def _prov_code(row) -> str:
     return (
         f"{row.price_provenance[0].upper()}/"
-        f"{row.service_hours_provenance[0].upper()}/"
+        f"{row.hours_provenance[0].upper()}/"
         f"{row.buyers_provenance[0].upper()}"
     )
 
@@ -87,7 +89,7 @@ def _board_payload() -> Dict[str, object]:
             "buyers_display": f"{row.buyers:,}",
             "provenance": {
                 "price": row.price_provenance,
-                "service_hours": row.service_hours_provenance,
+                "service_hours": row.hours_provenance,
                 "buyers": row.buyers_provenance,
             },
             "provenance_code": _prov_code(row),
@@ -110,6 +112,17 @@ def _board_payload() -> Dict[str, object]:
                 "conversion": f"{v.flips['conversion']:.3%}",
             },
             "margins": dict(v.margins),
+            "why": {
+                "failed_test": {
+                    arithmetic.DEAD: "capacity",
+                    arithmetic.BURNS: "reach",
+                    arithmetic.REACHABLE: "",
+                }[v.hard],
+                "detail": v.cause,
+                "closest_input": key,
+                "closest_label": fieldtest.INPUT_LABEL[key],
+                "closest_margin": margin,
+            },
             "closest": {
                 "input": key,
                 "label": fieldtest.INPUT_LABEL[key],
@@ -179,11 +192,13 @@ def _field_payload() -> Dict[str, object]:
     }
 
 
-def _calibration_payload(job_id: str, provider, results, report_text: str) -> Dict[str, object]:
+def _calibration_payload(job_id: str, provider, results, report_text: str, answers=None) -> Dict[str, object]:
     rows = []
     for result in results:
         item = asdict(result)
         item["survives"] = result.survives
+        item["label"] = calibrate.result_label(result)
+        item["reason"] = calibrate.failure_reason(result)
         rows.append(item)
 
     raw = [r for r in results if r.raw_pass]
@@ -237,7 +252,82 @@ def _calibration_payload(job_id: str, provider, results, report_text: str) -> Di
             else ("FAIL: noise survived" if kept else "PASS: zero questions survived noise")
         ),
         "report_text": report_text,
+        "confidence_gate": CONFIDENCE_GATE,
+        "questions": [
+            {
+                "id": q.id,
+                "family": q.family,
+                "text": q.text,
+                "maps_to": q.maps_to,
+                "options": [
+                    {"key": o.key, "label": o.label, "score": o.score, "escape": o.escape}
+                    for o in q.options
+                ],
+            }
+            for q in ADMITTED
+        ],
+        "ventures": _venture_detail(answers or {}),
     }
+
+
+def _venture_detail(answers) -> List[Dict[str, object]]:
+    disc, _hold = calibrate.stratified_split(LABELLED)
+    disc_ids = {v.id for v in disc}
+    out: List[Dict[str, object]] = []
+    for venture in LABELLED:
+        per = answers.get(venture.id, {})
+        out.append({
+            "id": venture.id,
+            "name": venture.name,
+            "sector": venture.sector,
+            "alive": venture.alive,
+            "kill_reason": venture.kill_reason,
+            "split": "discovery" if venture.id in disc_ids else "holdout",
+            "evidence": dict(venture.evidence),
+            "answers": {
+                qid: {"key": a.key, "confidence": a.confidence, "raw": a.raw}
+                for qid, a in per.items()
+            },
+        })
+    return out
+
+
+_RUN_ID = re.compile(r"^(latest|[0-9a-f]{12})$")
+
+
+def _list_runs() -> List[Dict[str, object]]:
+    out: List[Dict[str, object]] = []
+    if not RUNS.exists():
+        return out
+    for path in RUNS.glob("*.json"):
+        if path.stem == "latest":
+            continue
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        out.append({
+            "id": data.get("id", path.stem),
+            "provider": data.get("provider"),
+            "generated_at": data.get("generated_at"),
+            "summary": data.get("summary"),
+            "stub_verdict": data.get("stub_verdict"),
+            "has_ventures": bool(data.get("ventures")),
+        })
+    out.sort(key=lambda r: str(r["generated_at"]), reverse=True)
+    return out
+
+
+def _load_run(run_id: str) -> Optional[Dict[str, object]]:
+    if not _RUN_ID.match(run_id):
+        return None
+    path = RUNS / f"{run_id}.json"
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
 
 
 def _save_run(payload: Dict[str, object]) -> None:
@@ -289,7 +379,7 @@ def _run_job(job_id: str, provider_name: str, seed: int, permutations: int) -> N
         answers = collect(provider, LABELLED, ADMITTED, on_progress=progress)
         results = calibrate.evaluate(answers, LABELLED, permutations)
         report_text = calibrate.render_report(provider, results)
-        payload = _calibration_payload(job_id, provider, results, report_text)
+        payload = _calibration_payload(job_id, provider, results, report_text, answers)
         payload["permutations"] = permutations
 
         with _LOCK:
@@ -387,6 +477,14 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json(_field_payload())
             elif path == "/api/health":
                 self._send_json({"ok": True, "time": _now()})
+            elif path == "/api/runs":
+                self._send_json({"runs": _list_runs()})
+            elif path.startswith("/api/runs/"):
+                run = _load_run(path.rsplit("/", 1)[-1])
+                if run is None:
+                    self._send_error(404, "run not found")
+                else:
+                    self._send_json(run)
             elif path == "/api/calibration/latest":
                 with _LOCK:
                     latest = _LATEST
