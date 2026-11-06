@@ -1,0 +1,288 @@
+================================================================================================
+1. WHAT THE SCREEN IS A FUNCTION OF
+================================================================================================
+USABLE_HOURS / TARGET_MRR            = 173.2 / 10,000
+  revenue per delivery hour, bar     = $57.74/hr
+  price * buyers * conversion, bar   = $20,000/month
+
+The three printed tests are one test plus one test.  Proof by identity:
+  need > cap  <=>  TARGET/price > USABLE/hours  <=>  price/hours < BAR
+  contacts/pool > 50%  <=>  TARGET/(price*conv) > buyers/2
+                      <=>  price*buyers*conv < 2*TARGET
+
+venture                          $/hr  x bar   mkt $/mo  x bar               screen                facts
+------------------------------------------------------------------------------------------------
+DOT compliance                     50   0.87     27,000   1.35   DEAD ON ARITHMETIC   DEAD ON ARITHMETIC
+Prior-auth appeals                141   2.45     57,600   2.88            REACHABLE            REACHABLE
+Veterinary claims                 133   2.31     32,400   1.62            REACHABLE            REACHABLE
+Insurance subrogation             233   4.04     42,000   2.10            REACHABLE            REACHABLE
+Customs HTS classification        250   4.33     42,900   2.15            REACHABLE            REACHABLE
+Freight audit                     229   3.96     28,800   1.44            REACHABLE            REACHABLE
+Lien waiver filing                167   2.89     30,000   1.50            REACHABLE            REACHABLE
+RFP response drafting             250   4.33     13,500   0.68     BURNS THE MARKET     BURNS THE MARKET
+Grant compliance reporting        225   3.90     64,800   3.24            REACHABLE            REACHABLE
+Utility bill audit                200   3.46     36,000   1.80            REACHABLE            REACHABLE
+Medical billing denials           200   3.46     90,000   4.50            REACHABLE            REACHABLE
+Environmental permit monitor      250   4.33      6,000   0.30     BURNS THE MARKET     BURNS THE MARKET
+Title searches                    167   2.89     30,000   1.50            REACHABLE            REACHABLE
+Trademark watch                   300   5.20     45,000   2.25            REACHABLE            REACHABLE
+
+Every row's verdict is reproduced from two products.  The other two
+inputs are not extra information; they are the same information.
+
+================================================================================================
+2. HOW MANY INDEPENDENT NUMBERS THE OUTPUT ACTUALLY CONTAINS
+================================================================================================
+The break-even table prints two columns per row.  Both are one constant.
+  hours_flip / price  == 0.017320 for all 14 rows
+  price_flip / hours  == 57.7367 for all 14 rows
+  so 'hours now -> flips at' and 'price now -> flips at' are the
+  same number, printed twice with different units.
+
+  buyers_flip is invariant when buyers change (it depends only on price
+  and conversion); conversion_flip is invariant when conversion changes.
+  A 'flip' that ignores its own input is not a measurement target.
+
+  margins['buyers'] == margins['conversion'] on all 14 rows (exact).
+  The field report pretends these are two different measurements.  They
+  are one product.  'nearest input' always resolves the tie to buyers
+  because of the key order in Verdict.closest, not because of evidence.
+
+  Customs HTS classification: REACHABLE
+  synthetic twin (price/2, hours/2, buyers*2): REACHABLE
+  Same verdict from three different inputs.  The board is a 2-number
+  test wearing a 4-number costume.
+
+================================================================================================
+3. THE NUMBER THE TOOL NEVER PRINTS: CASH AT ONE-PERSON CAPACITY
+================================================================================================
+capacity is printed in accounts.  Multiply by price and it is revenue.
+
+venture                         $/hr  accounts  ceiling $/mo  $/contact-mo  months to 10k
+------------------------------------------------------------------------------------------------
+Trademark watch                  300     173.2       $51,960         $1.80           21.4
+Environmental permit monitor     250      21.6       $43,300        $12.00            3.2
+Customs HTS classification       250      57.7       $43,300         $8.25            4.7
+RFP response drafting            250      28.9       $43,300         $9.00            4.3
+Insurance subrogation            233      11.5       $40,413        $21.00            1.8
+Freight audit                    229      49.5       $39,589         $4.80            8.0
+Grant compliance reporting       225      43.3       $38,970         $5.40            7.1
+Utility bill audit               200      69.3       $34,640         $3.00           12.8
+Medical billing denials          200      34.6       $34,640         $6.00            6.4
+Lien waiver filing               167     115.5       $28,867         $1.50           25.6
+Title searches                   167     115.5       $28,867         $1.50           25.6
+Prior-auth appeals               141      20.4       $24,452         $7.20            5.3
+Veterinary claims                133      38.5       $23,093         $3.60           10.7
+DOT compliance                    50      57.7        $8,660         $0.90           42.7
+
+One person, 173.2 hours, at the stated price and service hours.  This
+is the ceiling the $10k bar is hiding.  The bar is a choice; capacity
+is the business.
+
+================================================================================================
+4. THE INPUT THAT DECIDES EVERYTHING, AND WHAT THE REPO SAYS IT IS
+================================================================================================
+13 of 14 rows use one constant: DEFAULT_CONVERSION = 0.600%.
+The only measured conversion in the repo is in the Customs row note:
+  'verified list 1.1% vs purchased 0.05%'
+
+venture                          1.100%     0.600%     0.100%     0.050%
+----------------------------------------------------------------------------
+DOT compliance               DEAD ON AR DEAD ON AR DEAD ON AR DEAD ON AR
+Prior-auth appeals            REACHABLE  REACHABLE BURNS THE  BURNS THE 
+Veterinary claims             REACHABLE  REACHABLE BURNS THE  BURNS THE 
+Insurance subrogation         REACHABLE  REACHABLE BURNS THE  BURNS THE 
+Customs HTS classification    REACHABLE  REACHABLE BURNS THE  BURNS THE 
+Freight audit                 REACHABLE  REACHABLE BURNS THE  BURNS THE 
+Lien waiver filing            REACHABLE  REACHABLE BURNS THE  BURNS THE 
+RFP response drafting         REACHABLE BURNS THE  BURNS THE  BURNS THE 
+Grant compliance reporting    REACHABLE  REACHABLE BURNS THE  BURNS THE 
+Utility bill audit            REACHABLE  REACHABLE BURNS THE  BURNS THE 
+Medical billing denials       REACHABLE  REACHABLE BURNS THE  BURNS THE 
+Environmental permit monitor BURNS THE  BURNS THE  BURNS THE  BURNS THE 
+Title searches                REACHABLE  REACHABLE BURNS THE  BURNS THE 
+Trademark watch               REACHABLE  REACHABLE BURNS THE  BURNS THE 
+----------------------------------------------------------------------------
+REACHABLE count                      12         11          0          0
+
+At the purchased-list rate the repo itself documents, zero of fourteen
+ventures pass.  The board is not a venture analysis.  It is a test of
+whether you own a channel that converts.
+
+Minimum viable price, price_min = 2*TARGET / (buyers * conversion):
+  Customs HTS classification   measured 1.1%    -> $350/mo  (now $750)
+  Customs HTS classification   default 0.6%     -> $641/mo  (now $750)
+  Customs HTS classification   purchased 0.05%  -> $7,692/mo  (now $750)
+
+================================================================================================
+5. HOW MUCH OF EACH VERDICT IS INVENTED
+================================================================================================
+venture                           price      hours     buyers  measured
+----------------------------------------------------------------------------
+DOT compliance                 anchored   estimate   estimate       1/3
+Prior-auth appeals             anchored   estimate   estimate       1/3
+Veterinary claims              estimate   estimate   estimate       0/3
+Insurance subrogation          estimate   estimate   estimate       0/3
+Customs HTS classification     anchored   estimate      yours       2/3
+Freight audit                  estimate   estimate   estimate       0/3
+Lien waiver filing             estimate   estimate   estimate       0/3
+RFP response drafting          estimate   estimate   estimate       0/3
+Grant compliance reporting     estimate   estimate   estimate       0/3
+Utility bill audit             estimate   estimate   estimate       0/3
+Medical billing denials        estimate   estimate   estimate       0/3
+Environmental permit monitor   estimate   estimate   estimate       0/3
+Title searches                 anchored   estimate   estimate       1/3
+Trademark watch                estimate   estimate   estimate       0/3
+
+conversion is 'published' on 13 rows but is one blended constant, not a
+measurement of that venture.  Only the Customs row carries a measured
+conversion (1.1%, from a verified list) and a counted buyer pool.
+Hours are an estimate on all 14 rows.  The fragility the tool reports is
+therefore the fragility of its own guess, not of a venture.
+
+================================================================================================
+6. DOES THE VERDICT SURVIVE THE TOOL'S OWN GUESSWORK?
+================================================================================================
+20,000 draws; every 'estimate' input is lognormal, sigma=0.40;
+'published' conversion is lognormal sigma=0.60 on rows using the default.
+
+venture                                      base  P(reachable)  p05 $/hr  p95 $/hr
+------------------------------------------------------------------------------------------------
+DOT compliance                 DEAD ON ARITHMETIC        23.2%        26        97
+Prior-auth appeals                      REACHABLE        91.8%        73       273
+Veterinary claims                       REACHABLE        68.8%        53       340
+Insurance subrogation                   REACHABLE        81.3%        93       585
+Customs HTS classification              REACHABLE        89.7%       129       484
+Freight audit                           REACHABLE        66.8%        89       577
+Lien waiver filing                      REACHABLE        67.2%        65       423
+RFP response drafting            BURNS THE MARKET        31.8%        98       631
+Grant compliance reporting              REACHABLE        91.6%        89       560
+Utility bill audit                      REACHABLE        76.0%        80       501
+Medical billing denials                 REACHABLE        95.3%        79       501
+Environmental permit monitor     BURNS THE MARKET         7.2%       100       635
+Title searches                          REACHABLE        70.8%        86       321
+Trademark watch                         REACHABLE        83.5%       117       766
+
+A row that passes only because a number was guessed is a row with a
+probability, not a verdict.  This column is the one the tool omits.
+
+================================================================================================
+7. THE MODEL LAYER: GOOD NEWS IS DISCARDED, BAD NEWS IS KEPT
+================================================================================================
+DOT compliance: hard verdict DEAD ON ARITHMETIC (price $150, 3 hrs)
+  best possible answers -> price $188, 3.00 hrs
+    arithmetic on moved bands: REACHABLE
+    after combine(hard, model): DEAD ON ARITHMETIC
+  worst answers -> after combine: DEAD ON ARITHMETIC
+
+Every answer set that improves the arithmetic is thrown away by the
+floor.  Every answer set that worsens it is kept.  So the 'model may
+move an input band' layer is a one-way ratchet toward DEAD: it cannot
+change the ranking of a reachable venture upward, and it can only add
+false negatives.  It is a veto with no information in it.
+
+================================================================================================
+8. THE CALL BUDGET IS A FLOOR MASQUERADING AS A MEASUREMENT PLAN
+================================================================================================
+sample_size(margin) = max(8, ceil(0.68 / margin^2)), capped at 200.
+Any margin above 29.2% therefore returns the floor, 8.
+
+  margin at which the floor takes over: 29.2%
+  margin  13.4% ->  38 calls
+  margin  30.6% ->   8 calls
+  margin  53.4% ->   8 calls
+  margin  71.1% ->   8 calls
+  margin 100.0% ->   8 calls
+
+  13 of 14 rows get 8 calls; the budget cannot rank them.
+The shopping list's information is its ordering, not its call count.
+
+================================================================================================
+9. WHERE THE DOLLARS ACTUALLY ARE
+================================================================================================
+A row is a candidate only if (a) its arithmetic clears both bars, (b) it
+has at least one measured input, and (c) the ceiling pays for the year.
+
+venture                         $/hr  ceiling $/mo  measured  mo -> $10k
+------------------------------------------------------------------------------
+Customs HTS classification       250       $43,300       2/3         4.7
+Title searches                   167       $28,867       1/3        25.6
+Prior-auth appeals               141       $24,452       1/3         5.3
+DOT compliance                    50        $8,660       1/3        42.7
+Trademark watch                  300       $51,960       0/3        21.4
+RFP response drafting            250       $43,300       0/3         4.3
+Environmental permit monitor     250       $43,300       0/3         3.2
+Insurance subrogation            233       $40,413       0/3         1.8
+Freight audit                    229       $39,589       0/3         8.0
+Grant compliance reporting       225       $38,970       0/3         7.1
+Utility bill audit               200       $34,640       0/3        12.8
+Medical billing denials          200       $34,640       0/3         6.4
+Lien waiver filing               167       $28,867       0/3        25.6
+Veterinary claims                133       $23,093       0/3        10.7
+
+Only one row has a measured input on more than one axis.  It is also
+the only row whose channel conversion was counted instead of assumed.
+
+Customs HTS classification, the only evidenced row:
+  accounts to clear $10k MRR : 13.3
+  one-person account ceiling : 57.7
+  one-person revenue ceiling : $43,300/month
+  contacts to clear $10k      : 1,212 (23% of the 5,200 pool)
+  contacts/mo at 60/wk        : 260
+  months to $10k at that pace : 4.7
+  revenue per contact-month   : $8.25
+  price floor at measured 1.1%: $350
+  price floor at default 0.6% : $641
+  price floor at purchased    : $7,692
+
+Pool-definition sensitivity for that row (the repo never audits it):
+     pool what it counts                    mkt $/mo @1.1%  price floor        @0.6%
+   16,170 licensed individuals (CBP)              $133,402         $112         $206
+    5,200 repo's 'counted customs brokers'         $42,900         $350         $641
+    2,500 brokerage firms (directory)              $20,625         $727       $1,333
+  CBP reports ~16,170 active licensed brokers; a public broker
+  directory lists ~2,500 firms.  A per-firm subscription sits closer to
+  the firm count, where $750 clears the 1.1% bar by only 3%.
+
+================================================================================================
+10. WHAT THE CALIBRATION ACTUALLY VALIDATED: ONE DIMENSION, THREE TIMES
+================================================================================================
+family     question               AUC(disc) AUC(hold)  jev AUC jev hold
+------------------------------------------------------------------------------
+buyer      buyer_role                 0.583     0.577    0.583    0.577
+buyer      buyer_list_source          0.583     0.577    0.583    0.577
+buyer      buyer_geography            0.583     0.577    0.583    0.577
+pain       pain_recurrence            0.667     0.449    0.667    0.449
+pain       pain_handler               0.667     0.449    0.667    0.449
+pain       pain_error_caught          0.667     0.449    0.667    0.449
+supply     supply_current             0.875     0.897    0.875    0.897
+supply     supply_alternative         0.875     0.897    0.875    0.897
+supply     supply_switching           0.875     0.897    0.875    0.897
+workflow   workflow_handoff           0.500     0.731    0.500    0.731
+workflow   workflow_system            0.500     0.731    0.500    0.731
+workflow   workflow_rework            0.500     0.731    0.500    0.731
+access     access_gatekeeper          0.556     0.692    0.556    0.692
+access     access_channel             0.556     0.692    0.556    0.692
+access     access_proof               0.556     0.692    0.556    0.692
+------------------------------------------------------------------------------
+Three questions per family, three identical AUCs per family, by
+construction: all three read the same single level.  The Jev run
+reproduced this exactly (0.875 x3, 0.667 x3, 0.500 x3, 0.583 x3,
+0.556 x3).  So 'three supply questions survive' means one latent
+variable survived and was printed three times, not three independent
+findings.
+
+The label rule is 2*supply + workflow + pain >= 5 and buyer + access
+>= 2.  The surviving family is the one the label rule weights double.
+The calibration therefore recovers its own generator, which is the one
+thing it cannot be used to prove.
+
+  single-factor AUC on the labels: supply 0.883, pain 0.564, workflow 0.612, buyer 0.573, access 0.631
+  the fourth option of every question is unrenderable: each question has
+  4 substantive options and each evidence block has only 3 sentences, so
+  one option can never be the right answer in the fixture.
+
+
+================================================================================================
+3552 assertions passed.
+================================================================================================

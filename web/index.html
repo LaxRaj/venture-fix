@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Venture stress test — board, break-evens, calibration</title>
+    <meta
+      name="description"
+      content="A local dashboard for a pre-revenue venture screen: arithmetic verdicts, break-even inputs, field calls, and calibration gates. No revenue forecast."
+    >
+    <meta name="theme-color" content="#0b6b51">
+    <link rel="stylesheet" href="/static/app.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <div class="wrap header-inner">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">VST</span>
+          <div>
+            <p class="eyebrow">Venture stress test</p>
+            <h1>What the venture requires, and where the verdict flips.</h1>
+          </div>
+        </div>
+        <p class="header-note">
+          <strong>No revenue forecast.</strong> Arithmetic first, model second.
+          The model may move an input band; it cannot produce a verdict.
+        </p>
+      </div>
+    </header>
+
+    <main id="main" class="wrap">
+      <section class="intro" aria-label="Overview">
+        <p class="lede">
+          We compute what each pre-revenue venture requires, check it against a
+          physical limit, and print the exact input value at which the verdict
+          flips. Every number below is an input, a requirement, or a break-even
+          — not a forecast.
+        </p>
+        <div class="meta-row" aria-label="Declared constants">
+          <span>$10,000 MRR bar</span>
+          <span>one person · 173.2 usable hours/month</span>
+          <span>0.6% contact-to-customer base</span>
+          <span id="updated-line">Loading run…</span>
+        </div>
+
+        <div class="kpi-grid" aria-label="Summary">
+          <div class="kpi">
+            <span class="kpi-label">Screened</span>
+            <strong class="kpi-value" id="kpi-total">—</strong>
+            <span class="kpi-note">economics rows</span>
+          </div>
+          <div class="kpi">
+            <span class="kpi-label">Reachable</span>
+            <strong class="kpi-value" id="kpi-reachable">—</strong>
+            <span class="kpi-note">clears capacity and reach</span>
+          </div>
+          <div class="kpi">
+            <span class="kpi-label">Burns market</span>
+            <strong class="kpi-value" id="kpi-burns">—</strong>
+            <span class="kpi-note">contacts exceed half the pool</span>
+          </div>
+          <div class="kpi">
+            <span class="kpi-label">Dead on arithmetic</span>
+            <strong class="kpi-value" id="kpi-dead">—</strong>
+            <span class="kpi-note">capacity ceiling</span>
+          </div>
+          <div class="kpi">
+            <span class="kpi-label">Questions kept</span>
+            <strong class="kpi-value" id="kpi-kept">—</strong>
+            <span class="kpi-note" id="kpi-kept-note">questions trusted</span>
+          </div>
+        </div>
+
+        <div class="safety">
+          <h2>The safety property</h2>
+          <p>
+            Hard checks fail closed and set a floor. The model fails open and
+            may only raise severity above it.
+          </p>
+          <pre><code>combine("DEAD ON ARITHMETIC", "REACHABLE")   == "DEAD ON ARITHMETIC"   # model cannot revive
+combine("REACHABLE", "BURNS THE MARKET")     == "BURNS THE MARKET"     # model can raise
+combine("REACHABLE", "garbage-from-timeout") == "REACHABLE"            # fails open</code></pre>
+        </div>
+      </section>
+
+      <nav class="tabs" role="tablist" aria-label="Views">
+        <button
+          class="tab"
+          id="tab-board"
+          role="tab"
+          aria-selected="true"
+          aria-controls="view-board"
+          data-view="board"
+        >Board</button>
+        <button
+          class="tab"
+          id="tab-brief"
+          role="tab"
+          aria-selected="false"
+          aria-controls="view-brief"
+          data-view="brief"
+          tabindex="-1"
+        >Brief</button>
+        <button
+          class="tab"
+          id="tab-field"
+          role="tab"
+          aria-selected="false"
+          aria-controls="view-field"
+          data-view="field"
+          tabindex="-1"
+        >Field</button>
+        <button
+          class="tab"
+          id="tab-calibration"
+          role="tab"
+          aria-selected="false"
+          aria-controls="view-calibration"
+          data-view="calibration"
+          tabindex="-1"
+        >Calibration</button>
+      </nav>
+
+      <section
+        class="view"
+        id="view-board"
+        role="tabpanel"
+        aria-labelledby="tab-board"
+        tabindex="0"
+      >
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">01 / Board</p>
+            <h2>The arithmetic board</h2>
+            <p>
+              Every row has the same three tests: accounts needed, one-person
+              capacity, and reach against the buyer pool. Price flips are
+              floored to whole dollars.
+            </p>
+          </div>
+          <div class="filters" id="board-filters" role="group" aria-label="Filter by verdict">
+            <button class="chip" data-filter="all" aria-pressed="true">All <span id="count-all">—</span></button>
+            <button class="chip" data-filter="REACHABLE" aria-pressed="false">Reachable <span id="count-reachable">—</span></button>
+            <button class="chip" data-filter="BURNS THE MARKET" aria-pressed="false">Burns market <span id="count-burns">—</span></button>
+            <button class="chip" data-filter="DEAD ON ARITHMETIC" aria-pressed="false">Dead <span id="count-dead">—</span></button>
+          </div>
+        </div>
+
+        <div id="board-loading" class="state" aria-live="polite">
+          <div class="skeleton" style="width: 42%"></div>
+          <div class="skeleton" style="width: 68%"></div>
+          <div class="skeleton" style="width: 54%"></div>
+        </div>
+
+        <div id="board-error" class="state error" hidden>
+          <h3>Could not load the board</h3>
+          <p id="board-error-text">The local server did not return the board payload.</p>
+          <button class="button-secondary" id="board-retry" type="button">Try again</button>
+        </div>
+
+        <div id="board-content" hidden>
+          <div class="table-wrap board-table-wrap">
+            <table id="board-table">
+              <caption class="sr-only">Venture arithmetic board with break-evens</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Venture</th>
+                  <th scope="col" class="num">Price</th>
+                  <th scope="col">Prov</th>
+                  <th scope="col" class="num">Hrs/acct</th>
+                  <th scope="col" class="num">Need</th>
+                  <th scope="col" class="num">Capacity</th>
+                  <th scope="col" class="num">Contacts</th>
+                  <th scope="col" class="num">Pool</th>
+                  <th scope="col">Verdict</th>
+                  <th scope="col" class="num">Hrs flip</th>
+                  <th scope="col" class="num">Price flip</th>
+                </tr>
+              </thead>
+              <tbody id="board-body"></tbody>
+            </table>
+          </div>
+
+          <div id="board-cards" class="board-cards"></div>
+
+          <p class="note">
+            A/E/E = anchored price / estimated hours / estimated buyers. Hover
+            the provenance code on desktop for the full label.
+          </p>
+
+          <div class="panel break-even-panel">
+            <h3>Break-evens</h3>
+            <p>Every row has one. These four are the most sensitive rows in the README.</p>
+            <div class="break-even-grid" id="break-even-grid"></div>
+          </div>
+        </div>
+      </section>
+
+      <section
+        class="view"
+        id="view-brief"
+        role="tabpanel"
+        aria-labelledby="tab-brief"
+        tabindex="0"
+        hidden
+      >
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">02 / Brief</p>
+            <h2>What flips each verdict</h2>
+            <p>
+              Each card states the cause, the three break-even inputs, and the
+              nearest input worth measuring. Sorted by distance to the nearest
+              flip.
+            </p>
+          </div>
+        </div>
+
+        <div id="brief-loading" class="state" aria-live="polite">
+          <div class="skeleton" style="width: 46%"></div>
+          <div class="skeleton" style="width: 72%"></div>
+          <div class="skeleton" style="width: 58%"></div>
+        </div>
+
+        <div id="brief-error" class="state error" hidden>
+          <h3>Could not load the brief</h3>
+          <p id="brief-error-text">The local server did not return the brief payload.</p>
+          <button class="button-secondary" id="brief-retry" type="button">Try again</button>
+        </div>
+
+        <div id="brief-grid" class="brief-grid" hidden></div>
+      </section>
+
+      <section
+        class="view"
+        id="view-field"
+        role="tabpanel"
+        aria-labelledby="tab-field"
+        tabindex="0"
+        hidden
+      >
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">03 / Field</p>
+            <h2>The shopping list</h2>
+            <p>
+              Spend calls where the number is close to its flip. The heuristic
+              is declared, not a power calculation: calls ≈ 0.68 / margin²,
+              floored at 8.
+            </p>
+          </div>
+        </div>
+
+        <div class="field-note">
+          <strong>Start at the top.</strong>
+          <span>The top row is the most fragile number in the system.</span>
+        </div>
+
+        <div id="field-loading" class="state" aria-live="polite">
+          <div class="skeleton" style="width: 50%"></div>
+          <div class="skeleton" style="width: 76%"></div>
+          <div class="skeleton" style="width: 62%"></div>
+        </div>
+
+        <div id="field-error" class="state error" hidden>
+          <h3>Could not load the field list</h3>
+          <p id="field-error-text">The local server did not return the field payload.</p>
+          <button class="button-secondary" id="field-retry" type="button">Try again</button>
+        </div>
+
+        <div id="field-list" class="field-list" hidden></div>
+      </section>
+
+      <section
+        class="view"
+        id="view-calibration"
+        role="tabpanel"
+        aria-labelledby="tab-calibration"
+        tabindex="0"
+        hidden
+      >
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">04 / Calibration</p>
+            <h2>Do the questions carry signal?</h2>
+            <p>
+              Three gates: discovery AUC, a permutation test with
+              Benjamini-Hochberg control, and replication on a held-out half.
+              A question is trusted only if it clears all four checks.
+            </p>
+          </div>
+          <form class="run-controls" id="run-form">
+            <label class="control">
+              <span class="control-label">Provider</span>
+              <select id="provider-select" name="provider">
+                <option value="jev">Jev · TypeSafe</option>
+                <option value="stub">Stub · noise</option>
+              </select>
+            </label>
+            <label class="control">
+              <span class="control-label">Permutations</span>
+              <input
+                id="permutations"
+                name="permutations"
+                type="number"
+                min="99"
+                max="9999"
+                step="100"
+                value="999"
+              >
+            </label>
+            <button class="button-primary" id="run-button" type="submit">Run calibration</button>
+          </form>
+        </div>
+
+        <div class="run-status" role="status" aria-live="polite">
+          <span class="status-dot" id="status-dot" aria-hidden="true"></span>
+          <span class="status-text" id="status-text">Loading latest run…</span>
+          <div class="progress" aria-hidden="true"><div id="progress-bar"></div></div>
+        </div>
+
+        <div id="calibration-empty" class="state" hidden>
+          <h3>No calibration run yet</h3>
+          <p>
+            Run the stub provider first to prove the harness, then run Jev to
+            see which questions carry signal on the synthetic fixture.
+          </p>
+        </div>
+
+        <div id="calibration-error" class="state error" hidden>
+          <h3>Calibration could not finish</h3>
+          <p id="calibration-error-text">The run failed before a report was produced.</p>
+          <button class="button-secondary" id="calibration-retry" type="button">Try the last run again</button>
+        </div>
+
+        <div id="calibration-content" hidden>
+          <div class="funnel" id="gate-funnel" aria-label="Calibration gate funnel"></div>
+          <dl class="calib-meta" id="calib-meta"></dl>
+
+          <div class="table-wrap">
+            <table id="calib-table" class="calib-table">
+              <caption class="sr-only">Calibration results by question</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Question</th>
+                  <th scope="col">Family</th>
+                  <th scope="col">Maps to</th>
+                  <th scope="col" class="num">AUC</th>
+                  <th scope="col" class="num">p</th>
+                  <th scope="col" class="num">BH</th>
+                  <th scope="col" class="num">Holdout</th>
+                  <th scope="col">Result</th>
+                </tr>
+              </thead>
+              <tbody id="calib-body"></tbody>
+            </table>
+          </div>
+
+          <div class="calib-grid">
+            <div class="panel">
+              <h3>Threshold sweep</h3>
+              <p>How the raw cutoff changes the survivor count.</p>
+              <div class="table-wrap">
+                <table class="sweep-table">
+                  <caption class="sr-only">Threshold sweep</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">AUC cutoff</th>
+                      <th scope="col" class="num">Raw</th>
+                      <th scope="col" class="num">Final</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sweep-body"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="panel">
+              <h3>Coverage</h3>
+              <p>Questions per family. The moat gate is printed as uncovered, not faked.</p>
+              <ul class="coverage-list" id="coverage-list"></ul>
+            </div>
+          </div>
+
+          <details class="raw-report">
+            <summary>Full report text</summary>
+            <pre id="report-text"></pre>
+          </details>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer-inner">
+        <span>Synthetic fixture · 43 labelled ventures · labels never enter model state.</span>
+        <span id="footer-updated">Local dashboard</span>
+      </div>
+    </footer>
+
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>
