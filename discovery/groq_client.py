@@ -1,0 +1,209 @@
+"""Groq (OpenAI-compatible) client: cheap generation, capped web-search grounding, and a stub.
+
+Two modes keep the free tier usable:
+  generate  no web search.  Candidates and their numbers are model *guesses*.
+  ground    web search (gpt-oss browser_search) for ONE candidate at a time, capped.
+Model names are not assumed: `python3 discover.py models` lists what your key can use.
+Daily-token limits are read from the 429 message; a model that is out for the day is
+skipped and the next one in GROQ_MODELS is used.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import re
+import time
+import urllib.error
+import urllib.request
+from typing import Callable, List, Optional
+
+from vstress.client import _post_json
+
+BASE = "https://api.groq.com/openai/v1"
+DEFAULT_MODEL = "openai/gpt-oss-20b"
+UA = "venture-fix-discovery/1.0"  # Cloudflare in front of Groq rejects the default Python-urllib agent (error 1010)
+CITATION = re.compile(r"【[^】]*】")  # search citation markers such as 【1†L2-L3】
+WAIT_LIMIT = 90.0  # a per-minute limit shorter than this is waited out; longer means a daily limit
+
+SCHEMA_HELP = (
+    '[{"offer": "short name", "buyer": "who pays", "task": "the recurring painful task", '
+    '"price_usd": number, "price_unit": "month" | "project" | "per_unit" | "contingency", '
+    '"price_url": null, "hours_per_account_month": number, "pool_count": number, "pool_url": null, '
+    '"channel": "free way to reach buyers", "blockers": "licence, compliance, saturation, offshore price competition", '
+    '"evidence": {"buyer": "short sentence", "pain": "short sentence", "supply": "what buyers use today", '
+    '"workflow": "how the work is handled", "access": "how to reach them"}}]'
+)
+
+GEN_PROMPT = (
+    "You brainstorm businesses a solo operator with no capital could start. Do not browse. From general knowledge, "
+    "list up to 6 distinct, concrete offers for the query as a JSON array only, shaped like: " + SCHEMA_HELP + ". "
+    "Rules: price_usd (US dollars), hours_per_account_month and pool_count are your best honest estimates as plain numbers; pool_count is how many such businesses exist in the US written as a full integer and never abbreviated; each offer gets its own estimate; use "
+    "price_unit 'month' only if a flat monthly retainer is realistic; price_url and pool_url must be null; never "
+    "invent a URL; be candid in blockers; keep every sentence short. Query: "
+)
+
+GROUND_PROMPT = (
+    "Search the web (at most 3 searches), then answer. For the service '{offer}' sold to '{buyer}', find (1) what "
+    "such buyers or competitors charge, as a monthly price if possible, with the page URL where you saw it; (2) how "
+    "many such businesses exist in the US, with the page URL. Reply with one JSON object only: "
+    '{{"price_usd": number or null, "price_unit": "month"|"project"|"per_unit"|"contingency"|null, '
+    '"price_url": string or null, "pool_count": number or null, "pool_url": string or null}}. '
+    "Use null for anything you did not see on a page. Never guess a number or a URL."
+)
+
+
+class DailyLimit(RuntimeError):
+    """Every configured model is out of tokens for the day."""
+
+
+def _clean(text: str) -> str:
+    return CITATION.sub("", text or "")
+
+
+def extract_json_list(text: str) -> List[dict]:
+    """Pull the first JSON array of objects out of a model reply; [] if none."""
+    text = _clean(text)
+    start, end = text.find("["), text.rfind("]")
+    if start == -1 or end <= start:
+        return []
+    try:
+        data = json.loads(text[start:end + 1])
+    except json.JSONDecodeError:
+        return []
+    return [d for d in data if isinstance(d, dict)] if isinstance(data, list) else []
+
+
+def extract_json_object(text: str) -> Optional[dict]:
+    text = _clean(text)
+    start, end = text.find("{"), text.rfind("}")
+    if start == -1 or end <= start:
+        return None
+    try:
+        data = json.loads(text[start:end + 1])
+    except json.JSONDecodeError:
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def wait_seconds(message: str) -> float:
+    """Seconds Groq asks us to wait, from 'Please try again in 7m58.2s'; 0 if absent."""
+    m = re.search(r"try again in (?:(\d+)h)?(?:(\d+)m(?!s))?(?:(\d+(?:\.\d+)?)s)?", message)
+    if not m:
+        return 0.0
+    h, mi, s = (float(x) if x else 0.0 for x in m.groups())
+    return h * 3600 + mi * 60 + s
+
+
+class GroqProvider:
+    name = "groq"
+
+    def __init__(self, sleep: Callable[[float], None] = time.sleep, retries: int = 4) -> None:
+        self.key = os.environ.get("GROQ_API_KEY", "")
+        models = os.environ.get("GROQ_MODELS") or os.environ.get("GROQ_MODEL") or DEFAULT_MODEL
+        self.models = [m.strip() for m in models.split(",") if m.strip()]
+        self.exhausted: set = set()
+        self.sleep = sleep
+        self.retries = retries
+        self.tokens_used = 0
+        if not self.key:
+            raise SystemExit("groq provider needs GROQ_API_KEY. Use --provider stub for an offline run.")
+
+    @property
+    def model(self) -> str:
+        live = [m for m in self.models if m not in self.exhausted]
+        if not live:
+            raise DailyLimit("daily token limit reached on: " + ", ".join(self.models)
+                             + ". Rerun later; cached work is kept.")
+        return live[0]
+
+    def _chat(self, prompt: str, search: bool, max_out: int) -> str:
+        while True:
+            model = self.model  # raises DailyLimit when none are left
+            body = {"model": model, "temperature": 0, "messages": [{"role": "user", "content": prompt}]}
+            if model.startswith("openai/gpt-oss"):
+                body["reasoning_effort"] = "low"
+                body["max_completion_tokens"] = max_out
+                if search:
+                    body.update(tools=[{"type": "browser_search"}], tool_choice="auto")
+            elif search:
+                raise RuntimeError(f"{model} has no known search tool; use an openai/gpt-oss model for grounding")
+            delay = 5.0
+            for _ in range(self.retries):
+                try:
+                    raw = _post_json(f"{BASE}/chat/completions", body,
+                                     {"Authorization": f"Bearer {self.key}", "User-Agent": UA}, timeout=180)
+                    self.tokens_used += int((raw.get("usage") or {}).get("total_tokens") or 0)
+                    return raw["choices"][0]["message"]["content"] or ""  # type: ignore[index]
+                except RuntimeError as exc:
+                    msg = str(exc)
+                    if "HTTP 429" in msg:
+                        wait = wait_seconds(msg)
+                        if "per day" in msg or wait > WAIT_LIMIT:
+                            self.exhausted.add(model)  # out for the day; fall to the next model
+                            break
+                        self.sleep(max(wait, delay))
+                        delay = min(delay * 2, 60.0)
+                        continue
+                    if "HTTP 5" in msg:
+                        self.sleep(delay)
+                        delay = min(delay * 2, 60.0)
+                        continue
+                    raise
+            else:
+                raise RuntimeError("rate limited after retries; rerun to resume from cache")
+
+    def ask(self, query_text: str) -> List[dict]:
+        """Stage 1: ungrounded brainstorm.  Numbers are guesses."""
+        return extract_json_list(self._chat(GEN_PROMPT + query_text, search=False, max_out=2500))
+
+    def ground(self, offer: str, buyer: str) -> Optional[dict]:
+        """Stage 2: capped web search for one candidate's price and pool."""
+        text = self._chat(GROUND_PROMPT.format(offer=offer, buyer=buyer), search=True, max_out=1500)
+        return extract_json_object(text)
+
+    def list_models(self) -> List[str]:
+        req = urllib.request.Request(f"{BASE}/models")
+        req.add_header("Authorization", f"Bearer {self.key}")
+        req.add_header("User-Agent", UA)
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+        except urllib.error.URLError as exc:
+            raise RuntimeError(f"could not reach Groq: {exc}") from exc
+        return sorted(m.get("id", "") for m in data.get("data", []))
+
+
+class StubGroq:
+    """Deterministic fake candidates.  Plumbing only: every number is invented."""
+
+    name = "stub"
+    tokens_used = 0
+
+    def ask(self, query_text: str) -> List[dict]:
+        h = int(hashlib.sha256(query_text.encode()).hexdigest()[:8], 16)
+        out = []
+        for i in range(3):
+            price = 150 + (h + i * 97) % 1800
+            out.append({
+                "offer": f"STUB alpha{h % 9973} beta{(h >> 5) % 991} gamma{(h + i * 31) % 983} service",
+                "buyer": f"STUB buyer {h % 101}",
+                "task": "STUB recurring task",
+                "price_usd": float(price), "price_unit": ("month", "month", "contingency")[i],
+                "price_url": None, "hours_per_account_month": float(2 + (h + i) % 12),
+                "pool_count": float(2000 + (h * (i + 3)) % 90000), "pool_url": None,
+                "channel": "STUB channel", "blockers": "STUB",
+                "evidence": {k: f"STUB {k} evidence." for k in ("buyer", "pain", "supply", "workflow", "access")},
+            })
+        return out
+
+    def ground(self, offer: str, buyer: str) -> Optional[dict]:
+        h = int(hashlib.sha256((offer + buyer).encode()).hexdigest()[:8], 16)
+        return {"price_usd": float(200 + h % 900), "price_unit": "month",
+                "price_url": f"https://example.invalid/price/{h % 1000}",
+                "pool_count": float(3000 + h % 40000), "pool_url": f"https://example.invalid/pool/{h % 1000}"}
+
+
+def make_groq(provider: str):
+    return StubGroq() if provider == "stub" else GroqProvider()

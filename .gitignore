@@ -7,3 +7,7 @@ __pycache__/
 .DS_Store
 .idea/
 .vscode/
+
+# discovery run outputs (live runs may contain API-derived data)
+discovery/out/
+discovery/out_stub/
