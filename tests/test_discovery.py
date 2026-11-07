@@ -10,7 +10,7 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from discovery import questions_v2 as Q2, tagcheck as TC, census as CS, extract as X, search as SE, dashboard as DB, dedupe as D, ground as G, harvest as H, rank as R, screen as S, seeds, tag as T, verify as V
-from discovery.groq_client import StubGroq, extract_json_list, extract_json_object, GroqProvider, DailyLimit, wait_seconds
+from discovery.groq_client import make_lanes, StubGroq, extract_json_list, extract_json_object, GroqProvider, DailyLimit, wait_seconds
 
 
 def cand(offer, **kw):
@@ -184,6 +184,88 @@ def test_multiple_keys_rotate_before_models() -> None:
             os.environ.pop(k, None)
 
 
+class _Lane(StubGroq):
+    """A stub lane that records its calls, can die after a number of calls, and is slow enough to interleave."""
+    def __init__(self, name, die_after=None, tokens=0):
+        self.name, self.calls, self.die_after, self.tokens_used, self.per_call = name, [], die_after, 0, tokens
+
+    def ask(self, text):
+        import time
+        time.sleep(0.01)
+        if self.die_after is not None and len(self.calls) >= self.die_after:
+            raise RuntimeError("daily token limit reached on lane")
+        self.calls.append(text)
+        self.tokens_used += self.per_call
+        return super().ask(text)
+
+
+def test_parallel_harvest_uses_every_lane_once_per_query() -> None:
+    qs = seeds.build_queries(40)
+    lanes = [_Lane(f"l{i}") for i in range(4)]
+    with tempfile.TemporaryDirectory() as d:
+        st = H.harvest_parallel(lanes, qs, d, log=lambda *_: None)
+        assert st["called"] == 40 and st["failed"] == 0 and st["lanes"] == 4 and st["lanes_stopped"] == 0
+        assert sorted(sum((l.calls for l in lanes), [])) == sorted(q["text"] for q in qs)     # every query exactly once
+        assert sum(1 for l in lanes if l.calls) >= 3                                       # the work really was spread out
+        assert len(os.listdir(d)) == 40
+        st2 = H.harvest_parallel([_Lane("x")], qs, d, log=lambda *_: None)
+        assert st2["cached"] == 40 and st2["called"] == 0                                  # resumes from cache
+
+
+def test_parallel_harvest_survives_a_dying_lane() -> None:
+    qs = seeds.build_queries(30)
+    dead, a, b = _Lane("dead", die_after=2), _Lane("a"), _Lane("b")
+    with tempfile.TemporaryDirectory() as d:
+        st = H.harvest_parallel([dead, a, b], qs, d, log=lambda *_: None)
+        assert st["lanes_stopped"] == 1 and len(dead.calls) == 2
+        assert st["called"] == 30 and st["failed"] == 0                                    # its query was taken by another lane
+        assert len(os.listdir(d)) == 30
+    with tempfile.TemporaryDirectory() as d:                                                # every lane out: nothing is lost, rest reported
+        st = H.harvest_parallel([_Lane("x", die_after=3), _Lane("y", die_after=3)], qs, d, log=lambda *_: None)
+        assert st["called"] == 6 and st["failed"] == 24 and st["lanes_stopped"] == 2
+        assert len(os.listdir(d)) == 6
+
+
+def test_parallel_harvest_respects_token_budget() -> None:
+    qs = seeds.build_queries(30)
+    lanes = [_Lane(f"l{i}", tokens=500) for i in range(3)]
+    with tempfile.TemporaryDirectory() as d:
+        st = H.harvest_parallel(lanes, qs, d, max_tokens=3000, log=lambda *_: None)
+        assert 6 <= st["called"] <= 8 and st["failed"] == 30 - st["called"]                # stops at the budget, within one call per lane
+
+
+def test_lane_pinning_and_lane_construction() -> None:
+    for k in ("GROQ_API_KEY", "GROQ_API_KEY_2", "GROQ_API_KEYS", "GROQ_LANE_MODELS", "GROQ_MODELS"):
+        os.environ.pop(k, None)
+    os.environ.update(GROQ_API_KEY="k1", GROQ_API_KEY_2="k2")
+    seen = []
+    def fake_post(url, body, headers, timeout=60):
+        seen.append((body["model"], headers["Authorization"].split()[-1]))
+        return {"choices": [{"message": {"content": "[]"}}], "usage": {"total_tokens": 10}}
+    Gm, real = _patched_post(fake_post)
+    try:
+        lanes = make_lanes()
+        assert [l.lane for l in lanes] == [("openai/gpt-oss-120b", 0), ("openai/gpt-oss-20b", 0), ("openai/gpt-oss-120b", 1), ("openai/gpt-oss-20b", 1)]
+        for l in lanes:
+            l.ask("q")
+        assert seen == [("openai/gpt-oss-120b", "k1"), ("openai/gpt-oss-20b", "k1"), ("openai/gpt-oss-120b", "k2"), ("openai/gpt-oss-20b", "k2")]
+        pinned = lanes[2]
+        pinned.exhausted.add(pinned.lane)
+        try:
+            pinned.ask("q")
+        except DailyLimit:
+            pass
+        else:
+            raise AssertionError("a pinned lane out of tokens must raise, not borrow another lane")
+        assert len(seen) == 4                                                              # and it sent nothing
+        os.environ["GROQ_LANE_MODELS"] = "openai/gpt-oss-20b"
+        assert len(make_lanes()) == 2
+    finally:
+        Gm._post_json = real
+        for k in ("GROQ_API_KEY", "GROQ_API_KEY_2", "GROQ_LANE_MODELS"):
+            os.environ.pop(k, None)
+
+
 def test_generation_sends_no_search_tool() -> None:
     os.environ["GROQ_API_KEY"] = "test"
     bodies = []
@@ -227,6 +309,15 @@ def test_ground_pick_merge_and_resume() -> None:
         assert merged[2]["grounded"] and merged[2]["price_url"].startswith("https://example.invalid")
         assert merged[0].get("grounded") is None  # not grounded, untouched
         assert merged[2]["screen"]["verdict"] in ("SURVIVES", "FAILS_POOL", "FAILS_HR", "FAILS_CAP")
+
+
+def test_pick_treats_pool_only_grounding_as_not_priced() -> None:
+    def row(i, fields):
+        c = cand(f"o{i} u{i}", price_usd=750.0, hours_per_account_month=10.0, pool_count=50000.0)
+        c["id"] = f"v{i}"; c["grounded_fields"] = fields; c["grounded"] = bool(fields); c["screen"] = S.screen(c); return c
+    rows = [row(0, []), row(1, ["pool"]), row(2, ["price"]), row(3, ["pool", "price"])]
+    assert {r["id"] for r in G.pick(rows, 10, "survivors")} == {"v0", "v1"}          # a pool-only row still needs its price
+    assert {r["id"] for r in G.pick(rows, 10, "all")} == {"v0", "v1"}
 
 
 def test_token_budget_stops_run() -> None:
