@@ -22,7 +22,8 @@ STAGE_FILES = ("verified.json", "grounded.json", "screened.json")
 KEEP = ("id", "offer", "buyer", "task", "sector", "pain", "model", "price_usd", "price_unit", "price_url",
         "hours_per_account_month", "pool_count", "pool_url", "channel", "blockers", "evidence", "cluster_size",
         "grounded", "grounded_fields", "guess", "screen", "verify", "price_quoted", "evidence_quote", "price_basis",
-        "pool_basis", "pool_note", "grounded_via", "price_kind", "price_rejected", "jev_removed", "tags2")
+        "pool_basis", "pool_note", "grounded_via", "price_kind", "price_rejected", "jev_removed", "tags2",
+        "units_per_account_month", "volume_basis", "unit_name")
 
 
 def _read(path: str):

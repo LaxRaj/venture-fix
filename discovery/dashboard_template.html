@@ -60,13 +60,19 @@ const DATA = /*__DATA__*/null;
 
 /*__SCREEN_JS_START__*/
 function screenRow(c, P) {
-  const unit = c.price_unit, price = c.price_usd, hrs = c.hours_per_account_month, pool = c.pool_count;
+  let unit = c.price_unit, price = c.price_usd;
+  const hrs = c.hours_per_account_month, pool = c.pool_count;
+  let derived = false;
   if (unit === "contingency") return {verdict: "CONTINGENCY", why: "paid as a share of recovery; the flat-price test cannot score it"};
-  if (unit === "project" || unit === "per_unit") return {verdict: "UNIT", why: "priced per " + unit + "; needs a monthly accounts figure to convert"};
+  if (unit === "project" || unit === "per_unit") {
+    if (c.units_per_account_month == null || price == null) return {verdict: "UNIT", why: "priced per " + unit + "; needs a typical monthly volume to convert"};
+    price = price * c.units_per_account_month; unit = "month"; derived = true;
+  }
   const missing = [["price", price], ["hours", hrs], ["pool", pool]].filter(x => x[1] == null).map(x => x[0]);
   if (unit !== "month" || missing.length) return {verdict: "INSUFFICIENT", why: "missing " + (missing.length ? missing.join(", ") : "monthly price unit")};
   const perHr = price / hrs, accounts = Math.ceil(P.target / price), cap = P.deliv / hrs;
-  const row = {per_hr: perHr, accounts: accounts, cap: cap, price_flag: price > P.flag};
+  const row = {per_hr: perHr, accounts: accounts, cap: cap, price_flag: price > P.flag, derived: derived};
+  if (derived) row.monthly_price = price;
   for (const [tag, conv] of [["base", P.base], ["stress", P.stress]]) {
     const contacts = accounts / conv;
     row["contacts_" + tag] = contacts;
@@ -254,12 +260,15 @@ function shortlist() {
   const flagged = results.filter(x => x.s.verdict === "SURVIVES" && x.s.price_flag).length;
   const jevOut = results.filter(x => x.s.verdict === "SURVIVES" && x.r.jev_removed).length;
   const GO = {A: 0, B: 1, C: 2};
-  const top = results.filter(x => x.s.verdict === "SURVIVES" && !x.s.price_flag && !x.r.jev_removed && x.r.verify && ["A", "B"].includes(x.r.verify.grade))
+  const top = results.filter(x => x.s.verdict === "SURVIVES" && !x.s.price_flag && !x.s.derived && !x.r.jev_removed && x.r.verify && ["A", "B"].includes(x.r.verify.grade))
     .sort((a, b) => GO[a.r.verify.grade] - GO[b.r.verify.grade] || a.s.weeks_base - b.s.weeks_base || b.s.per_hr - a.s.per_hr).slice(0, 15);
+  const derivedN = results.filter(x => x.s.verdict === "SURVIVES" && x.s.derived).length;
   const note = h("div", null,
+    derivedN ? h("p", {class: "small mute"}, derivedN + " survivors are priced per unit or project, with the monthly price derived from a guessed volume. They are kept off this list and shown below.") : null,
     flagged ? h("p", {class: "small mute"}, flagged + " survivors are flagged as enterprise-scale prices and kept off this list (see the flag marker in the table).") : null,
     jevOut ? h("p", {class: "small mute"}, jevOut + " survivors were removed by Jev's second opinion (see section 6).") : null);
-  if (!top.length) return h("div", {class: "empty"}, "Empty by design: a candidate needs to survive the screen AND have a cited page that loads (grade A or B). Run ground, then verify, to fill this in.");
+  const dl = derivedList();
+  if (!top.length) return h("div", null, note, h("div", {class: "empty"}, "Empty by design: a candidate needs to survive the screen AND have a cited page that loads (grade A or B). Run ground, then verify, to fill this in."), dl);
   return h("div", null, note, top.map((x, i) => {
     const contacts = Math.round(P.out * 3);
     return h("div", {class: "card"},
@@ -268,7 +277,18 @@ function shortlist() {
       h("p", {class: "small"}, "Test: contact " + contacts + " buyers over 3 weeks via " + (x.r.channel || "a free channel you choose") + "; expected paid at " + pct(P.base) + ": about " + num(contacts * P.base) + ". Pass: 1 paid, or 3 booked calls from warm replies."),
       h("p", {class: "small mute"}, "Blockers: " + (x.r.blockers || "none stated")),
       h("button", {onclick: () => { S.sel = x.r.id; S.verdict = null; refresh(true); }}, "Show working"));
-  }));
+  }), dl);
+}
+
+function derivedList() {
+  const d = results.filter(x => x.s.verdict === "SURVIVES" && x.s.derived).sort((a, b) => a.s.weeks_base - b.s.weeks_base).slice(0, 12);
+  if (!d.length) return null;
+  return h("div", null, h("h3", null, "Priced per unit or project: monthly price derived from a guessed volume"),
+    h("p", {class: "small mute"}, "A price per video, clip or project times how many a typical small buyer might purchase in a month (the volume is a model guess). Leads to check, not a ranking."),
+    d.map(x => h("div", {class: "card"}, h("b", null, x.r.offer), " ", tag("g-B", "volume guessed"),
+      h("p", {class: "small"}, x.r.buyer + " | " + money(x.r.price_usd) + "/" + (x.r.price_unit === "project" ? "project" : "unit") + " x " + num(x.r.units_per_account_month) + " = " + money(x.s.monthly_price) + "/mo | " + num(x.s.accounts, 0) + " accounts | " + num(x.s.weeks_base) + " wk at " + pct(P.base)),
+      h("p", {class: "small mute"}, (x.r.volume_basis || "") + " | price " + (priceCited(x.r) ? "cited" : "guessed")),
+      h("button", {onclick: () => { S.sel = x.r.id; S.verdict = null; refresh(true); }}, "Show working"))));
 }
 
 function step(ok, label, body) {
@@ -292,10 +312,11 @@ function detail(x) {
       r.pool_basis === "census" ? " [official Census count, industry-level upper bound, not this exact buyer]" : null),
     r.pool_note && r.pool_basis === "census" ? h("div", {class: "mute"}, r.pool_note) : null,
     r.guess ? h("div", {class: "mute"}, "Before grounding the model guessed: price " + money(r.guess.price_usd) + ", pool " + num(r.guess.pool_count, 0)) : null));
+  if (s.derived) box.append(h("p", {class: "small fail"}, "Monthly price is derived: " + money(r.price_usd) + " per " + (r.price_unit === "project" ? "project" : "unit") + " x " + num(r.units_per_account_month) + " per month = " + money(s.monthly_price) + "/mo. The volume is a model guess" + (r.volume_basis ? " (" + r.volume_basis + ")" : "") + "."));
   box.append(h("h3", null, "The test, step by step at the current settings"));
   if (s.per_hr == null) box.append(step(null, "Not scored", s.why));
   else {
-    box.append(step(s.per_hr >= P.bar, "Gate 1: revenue per hour", money(r.price_usd) + " / " + num(r.hours_per_account_month) + " h = " + money(s.per_hr) + "/hr; bar is $" + P.bar));
+    box.append(step(s.per_hr >= P.bar, "Gate 1: revenue per hour", money(s.derived ? s.monthly_price : r.price_usd) + " / " + num(r.hours_per_account_month) + " h = " + money(s.per_hr) + "/hr; bar is $" + P.bar));
     box.append(step(s.accounts <= s.cap, "Gate 2: capacity", "ceil(" + money(P.target) + " / " + money(r.price_usd) + ") = " + num(s.accounts, 0) + " accounts needed; capacity " + P.deliv + " / " + num(r.hours_per_account_month) + " = " + num(s.cap) + " accounts"));
     box.append(step(s.pool_ok_base, "Gate 3: reach at " + pct(P.base), num(s.accounts) + " / " + pct(P.base) + " = " + num(s.contacts_base, 0) + " contacts; limit " + num(r.pool_count * P.reach, 0) + " (" + Math.round(P.reach * 100) + "% of pool)"));
     box.append(step(null, "Speed", num(s.contacts_base, 0) + " contacts / " + P.out + " per week = " + num(s.weeks_base) + " weeks to target"));
@@ -338,7 +359,7 @@ function table(scrollTo) {
     const tr = h("tr", {class: "item" + (S.sel === x.r.id ? " sel" : ""), tabindex: "0", id: "row-" + x.r.id,
       onclick: () => { S.sel = S.sel === x.r.id ? null : x.r.id; refresh(true); }},
       h("td", null, x.r.offer), h("td", {class: "small"}, x.r.buyer),
-      h("td", {class: "n"}, money(x.r.price_usd) + (x.r.price_unit && x.r.price_unit !== "month" ? "/" + x.r.price_unit : "/mo") + (priceCited(x.r) ? " ✓" : "") + (x.s.price_flag ? " ⚑" : "")),
+      h("td", {class: "n"}, money(x.r.price_usd) + (x.r.price_unit && x.r.price_unit !== "month" ? "/" + x.r.price_unit : "/mo") + (priceCited(x.r) ? " ✓" : "") + (x.s.price_flag ? " ⚑" : "") + (x.s.derived ? " ≈" + money(x.s.monthly_price) + "/mo*" : "")),
       h("td", {class: "n"}, x.s.per_hr == null ? "-" : money(x.s.per_hr)), h("td", {class: "n"}, x.s.accounts == null ? "-" : num(x.s.accounts)),
       h("td", {class: "n"}, x.s.weeks_base == null ? "-" : num(x.s.weeks_base)), h("td", null, tag("v-" + x.s.verdict, VERDICT_TEXT[x.s.verdict])),
       h("td", null, x.r.verify ? tag("g-" + x.r.verify.grade, x.r.verify.grade) : "-"));
@@ -348,7 +369,7 @@ function table(scrollTo) {
   const wrap = h("div", {class: "wrapx"}, h("table", null,
     h("thead", null, h("tr", null, th("Offer", "offer"), h("th", null, "Buyer"), th("Price", "price", "n"), th("$/hr", "hr", "n"), th("Accounts", "accounts", "n"), th("Weeks", "weeks", "n"), th("Verdict", "verdict"), th("Grade", "grade"))), body));
   const more = !S.sel && rows.length > shown.length ? h("button", {onclick: () => { S.limit += 200; refresh(); }}, "Show more (" + (rows.length - shown.length) + " left)") : null;
-  return h("div", null, h("p", {class: "small mute"}, rows.length + " candidates. ✓ = price from a cited page. ⚑ = price above the flag threshold (enterprise-scale?). Click a row for its working."), wrap, more);
+  return h("div", null, h("p", {class: "small mute"}, rows.length + " candidates. ✓ = price from a cited page. ⚑ = price above the flag threshold (enterprise-scale?). ≈ *= monthly price derived from a guessed volume. Click a row for its working."), wrap, more);
 }
 
 function jevSection() {

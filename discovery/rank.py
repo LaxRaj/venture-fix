@@ -41,7 +41,7 @@ def apply_jev_gate(rows: List[dict], tags_v2: dict, trusted: set) -> List[dict]:
 
 def shortlist(rows: List[dict], top: int = 15) -> List[dict]:
     ok = [r for r in rows if r["screen"].get("verdict") == "SURVIVES" and not r["screen"].get("price_flag")
-          and not r.get("jev_removed") and r.get("verify", {}).get("grade") in ("A", "B")]
+          and not r["screen"].get("derived") and not r.get("jev_removed") and r.get("verify", {}).get("grade") in ("A", "B")]
     ok.sort(key=lambda r: (GRADE_ORDER[r["verify"]["grade"]], r["screen"]["weeks_base"], -r["screen"]["per_hr"]))
     return ok[:top]
 
@@ -92,6 +92,15 @@ def report(rows: List[dict], n_queries: int, n_raw: int, sat: List[dict], stub: 
         lines += [f"## Survivors flagged as enterprise-scale prices ({len(flagged)})", "",
                   "Monthly price above the flag threshold: unlikely for the small businesses one person can reach, so kept off the shortlist.", ""]
         lines += [f"- {r['offer']} ({r['buyer']}): ${r['price_usd']:,.0f}/mo" for r in flagged[:40]]
+        lines.append("")
+    der = sorted((r for r in rows if r["screen"].get("verdict") == "SURVIVES" and r["screen"].get("derived")),
+                 key=lambda r: r["screen"]["weeks_base"])
+    if der:
+        lines += [f"## Survivors priced per unit or project ({len(der)}): monthly price derived from a GUESSED volume", "",
+                  "Kept off the shortlist: a guessed volume on top of a price that is usually also a guess. Treat as leads to check.", ""]
+        lines += [f"- {r['offer']} ({r['buyer']}): ${r['price_usd']:,.0f}/{r.get('price_unit') or 'unit'} x {r['units_per_account_month']:g} "
+                  f"= ${r['screen']['monthly_price']:,.0f}/mo, {r['screen']['accounts']} accounts, {r['screen']['weeks_base']} wk "
+                  f"({'cited price' if 'price' in (r.get('grounded_fields') or []) else 'guessed price'})" for r in der[:40]]
         lines.append("")
     jev = [r for r in rows if r["screen"].get("verdict") == "SURVIVES" and r.get("jev_removed")]
     if jev:

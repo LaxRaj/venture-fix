@@ -18,7 +18,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-from discovery import census as CS, tagcheck as TC, dashboard as DB, search as SE, dedupe as D, ground as G, harvest as H, rank as R, screen as S, seeds, tag as T, verify as V
+from discovery import volume as VOL, census as CS, tagcheck as TC, dashboard as DB, search as SE, dedupe as D, ground as G, harvest as H, rank as R, screen as S, seeds, tag as T, verify as V
 from discovery.groq_client import make_groq, make_lanes, GroqProvider
 from run import _load_dotenv
 
@@ -154,6 +154,25 @@ def cmd_screen(args) -> None:
     print(dict(Counter(r["screen"]["verdict"] for r in rows)))
 
 
+def cmd_volume(args) -> None:
+    o = out_dir(args.provider)
+    gp = os.path.join(o, "grounded.json")
+    rows = _read(gp if os.path.exists(gp) else os.path.join(o, "screened.json"))
+    cache = os.path.join(o, "cache_volume")
+    todo = [r for r in VOL.wanted(rows)]
+    if args.limit:                                      # smoke test: only the first N uncached
+        todo = [r for r in todo if not os.path.exists(os.path.join(cache, VOL.key(r) + ".json"))][:args.limit]
+    stats = VOL.fill(make_groq(args.provider), todo, cache, max_tokens=args.max_tokens)
+    print(f"volume: {stats}  ({len(VOL.wanted(rows))} per-unit/project candidates)")
+    before = {r["id"]: r["screen"]["verdict"] for r in rows}
+    merged = VOL.apply_cached(rows, cache)
+    _write(gp, merged)
+    from collections import Counter
+    moved = Counter((before[r["id"]], r["screen"]["verdict"]) for r in merged if before[r["id"]] != r["screen"]["verdict"])
+    print("verdict changes from derived monthly prices:", {f"{a} -> {b}": n for (a, b), n in moved.most_common()})
+    print("derived survivors:", sum(1 for r in merged if r["screen"].get("derived") and r["screen"]["verdict"] == "SURVIVES"))
+
+
 def cmd_ground(args) -> None:
     o = out_dir(args.provider)
     # Start from the merged rows when they exist: a candidate can become a survivor only after its Census pool is
@@ -168,7 +187,7 @@ def cmd_ground(args) -> None:
             raise SystemExit("--pools-only needs CENSUS_API_KEY")
         d = os.path.join(o, "cache_ground_pools")
         print(f"ground (census pools): {G.ground_pools(census, rows, d)}")
-        merged = G.merge_cached(rows, *dirs, d, os.path.join(o, "cache_ground_search"))
+        merged = VOL.apply_cached(G.merge_cached(rows, *dirs, d, os.path.join(o, "cache_ground_search")), os.path.join(o, "cache_volume"))
         _write(os.path.join(o, "grounded.json"), merged)
         print(f"{sum(1 for r in merged if r.get('grounded'))} candidates now carry cited price or pool figures")
         return
@@ -183,7 +202,7 @@ def cmd_ground(args) -> None:
         stats = G.ground_all_search(groq, search, census, rows, d, n=args.top, max_tokens=args.max_tokens, scope=args.scope)
         dirs += [os.path.join(o, "cache_ground_pools"), d]
     print(f"ground ({args.engine}): {stats}")
-    merged = G.merge_cached(rows, *dirs)
+    merged = VOL.apply_cached(G.merge_cached(rows, *dirs), os.path.join(o, "cache_volume"))
     _write(os.path.join(o, "grounded.json"), merged)
     print(f"{sum(1 for r in merged if r.get('grounded'))} candidates now carry cited price or pool figures")
 
@@ -267,6 +286,11 @@ def main(argv=None) -> int:
             sp.add_argument("--max-searches", type=int, default=None, help="cap on paid search calls this run")
             sp.add_argument("--pools-only", action="store_true", help="only add Census buyer pools: no search, no Groq tokens")
         sp.set_defaults(fn=fn)
+    vp = sub.add_parser("volume", help="guess a typical monthly volume for per-unit/project offers, so they can be scored")
+    vp.add_argument("--provider", choices=("live", "stub"), default="stub")
+    vp.add_argument("--limit", type=int, default=None, help="smoke test: only this many new candidates")
+    vp.add_argument("--max-tokens", type=int, default=None)
+    vp.set_defaults(fn=cmd_volume)
     tc = sub.add_parser("tagcheck", help="quality-check the Jev question bank: offline coverage, then --run on the gold set")
     tc.add_argument("--provider", choices=("live", "stub"), default="stub")
     tc.add_argument("--run", action="store_true", help="send the gold set to Jev (two shuffled runs each)")
