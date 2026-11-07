@@ -17,7 +17,7 @@ import re
 import time
 import urllib.error
 import urllib.request
-from typing import Callable, List, Optional
+from typing import Callable, Dict, List, Optional
 
 from vstress.client import _post_json
 
@@ -52,6 +52,19 @@ GROUND_PROMPT = (
     '"price_url": string or null, "pool_count": number or null, "pool_url": string or null}}. '
     "Use null for anything you did not see on a page. Never guess a number or a URL."
 )
+
+
+def _collect_keys() -> List[str]:
+    """GROQ_API_KEY, GROQ_API_KEY_2, GROQ_API_KEY_3 ... and an optional comma list in GROQ_API_KEYS, de-duplicated.
+    Groq limits apply per organization, so extra keys only help if they belong to a different one."""
+    keys: List[str] = []
+    cands = [os.environ.get("GROQ_API_KEY", "")] + [os.environ.get(f"GROQ_API_KEY_{i}", "") for i in range(2, 10)]
+    cands += (os.environ.get("GROQ_API_KEYS") or "").split(",")
+    for k in cands:
+        k = k.strip()
+        if k and k not in keys:
+            keys.append(k)
+    return keys
 
 
 class DailyLimit(RuntimeError):
@@ -103,27 +116,30 @@ class GroqProvider:
     name = "groq"
 
     def __init__(self, sleep: Callable[[float], None] = time.sleep, retries: int = 4) -> None:
-        self.key = os.environ.get("GROQ_API_KEY", "")
+        self.keys = _collect_keys()
+        self.key = self.keys[0] if self.keys else ""      # first key: model listing
         models = os.environ.get("GROQ_MODELS") or os.environ.get("GROQ_MODEL") or DEFAULT_MODEL
         self.models = [m.strip() for m in models.split(",") if m.strip()]
-        self.exhausted: set = set()
+        self.exhausted: set = set()                        # (model, key index) pairs out of tokens for the day
         self.sleep = sleep
         self.retries = retries
         self.tokens_used = 0
-        if not self.key:
+        self.tokens_by_key: Dict[int, int] = {}            # key index -> tokens, to see whether extra keys help
+        if not self.keys:
             raise SystemExit("groq provider needs GROQ_API_KEY. Use --provider stub for an offline run.")
 
-    @property
-    def model(self) -> str:
-        live = [m for m in self.models if m not in self.exhausted]
-        if not live:
-            raise DailyLimit("daily token limit reached on: " + ", ".join(self.models)
-                             + ". Rerun later; cached work is kept.")
-        return live[0]
+    def _pick(self):
+        """Next (model, key index) that still has tokens: try each key on a model before moving to the next model."""
+        for m in self.models:
+            for ki in range(len(self.keys)):
+                if (m, ki) not in self.exhausted:
+                    return m, ki
+        raise DailyLimit("daily token limit reached on: " + ", ".join(self.models)
+                         + f" across {len(self.keys)} key(s). Rerun later; cached work is kept.")
 
     def _chat(self, prompt: str, search: bool, max_out: int) -> str:
         while True:
-            model = self.model  # raises DailyLimit when none are left
+            model, ki = self._pick()  # raises DailyLimit when none are left
             body = {"model": model, "temperature": 0, "messages": [{"role": "user", "content": prompt}]}
             body["max_completion_tokens"] = max_out
             if model.startswith("openai/gpt-oss"):
@@ -136,15 +152,17 @@ class GroqProvider:
             for _ in range(self.retries):
                 try:
                     raw = _post_json(f"{BASE}/chat/completions", body,
-                                     {"Authorization": f"Bearer {self.key}", "User-Agent": UA}, timeout=180)
-                    self.tokens_used += int((raw.get("usage") or {}).get("total_tokens") or 0)
+                                     {"Authorization": f"Bearer {self.keys[ki]}", "User-Agent": UA}, timeout=180)
+                    used = int((raw.get("usage") or {}).get("total_tokens") or 0)
+                    self.tokens_used += used
+                    self.tokens_by_key[ki] = self.tokens_by_key.get(ki, 0) + used
                     return raw["choices"][0]["message"]["content"] or ""  # type: ignore[index]
                 except RuntimeError as exc:
                     msg = str(exc)
                     if "HTTP 429" in msg:
                         wait = wait_seconds(msg)
                         if "per day" in msg or wait > WAIT_LIMIT:
-                            self.exhausted.add(model)  # out for the day; fall to the next model
+                            self.exhausted.add((model, ki))  # out for the day on this key; try the next key, then model
                             break
                         self.sleep(max(wait, delay))
                         delay = min(delay * 2, 60.0)

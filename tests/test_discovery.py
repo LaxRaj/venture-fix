@@ -114,7 +114,7 @@ def test_daily_limit_rotates_models() -> None:
         assert g.ask("q") == [{"offer": "a", "buyer": "b"}]
         assert seen == ["openai/gpt-oss-20b", "openai/gpt-oss-120b"] and g.tokens_used == 321
         # a second model out for the day too -> DailyLimit, not an endless retry
-        g.exhausted.add("openai/gpt-oss-120b")
+        g.exhausted.add(("openai/gpt-oss-120b", 0))
         try:
             g.ask("q")
         except DailyLimit:
@@ -144,6 +144,44 @@ def test_stray_tool_call_is_not_fatal() -> None:
     finally:
         Gm._post_json = real
         del os.environ["GROQ_API_KEY"]
+
+
+def test_multiple_keys_rotate_before_models() -> None:
+    for k in ("GROQ_API_KEY", "GROQ_API_KEY_2", "GROQ_API_KEY_3", "GROQ_API_KEYS", "GROQ_MODELS"):
+        os.environ.pop(k, None)
+    os.environ.update(GROQ_API_KEY="k1", GROQ_API_KEY_2="k2", GROQ_API_KEY_3="k1", GROQ_API_KEYS="k4, k2",
+                      GROQ_MODELS="openai/gpt-oss-120b,openai/gpt-oss-20b")
+    seen = []
+
+    def fake_post(url, body, headers, timeout=60):
+        key = headers["Authorization"].split()[-1]
+        seen.append((body["model"], key))
+        if key == "k1":                                    # the first key is out of tokens for the day
+            raise RuntimeError("x returned HTTP 429: Rate limit on tokens per day (TPD). Please try again in 7m58s.")
+        return {"choices": [{"message": {"content": "[]"}}], "usage": {"total_tokens": 100}}
+    Gm, real = _patched_post(fake_post)
+    try:
+        g = GroqProvider(sleep=lambda s: None)
+        assert g.keys == ["k1", "k2", "k4"]                                         # ordered, de-duplicated
+        g.ask("q")
+        assert seen == [("openai/gpt-oss-120b", "k1"), ("openai/gpt-oss-120b", "k2")]   # same model, next key first
+        assert g.exhausted == {("openai/gpt-oss-120b", 0)} and g.tokens_by_key == {1: 100}
+        g.ask("q")
+        assert seen[-1] == ("openai/gpt-oss-120b", "k2")                            # exhausted pair is not retried
+        g.exhausted.update({("openai/gpt-oss-120b", 1), ("openai/gpt-oss-120b", 2)})
+        g.ask("q")
+        assert seen[-1] == ("openai/gpt-oss-20b", "k1") or seen[-1] == ("openai/gpt-oss-20b", "k2")   # only then the next model
+        g.exhausted.update({(m, i) for m in g.models for i in range(3)})
+        try:
+            g.ask("q")
+        except DailyLimit as exc:
+            assert "3 key(s)" in str(exc)
+        else:
+            raise AssertionError("expected DailyLimit")
+    finally:
+        Gm._post_json = real
+        for k in ("GROQ_API_KEY", "GROQ_API_KEY_2", "GROQ_API_KEY_3", "GROQ_API_KEYS", "GROQ_MODELS"):
+            os.environ.pop(k, None)
 
 
 def test_generation_sends_no_search_tool() -> None:
@@ -283,7 +321,7 @@ def test_extract_rejects_prices_that_are_not_vendor_fees() -> None:
     q = {"price_usd": 349, "price_unit": "month", "source_index": 0, "quote": "Plans start at $349 per month"}
     assert X.validate(dict(q, price_kind="vendor_fee", audience="small_business"), RES)["price_kind"] == "vendor_fee"
     assert X.validate(dict(q, price_kind="vendor_fee"), RES)["price_usd"] == 349                    # audience optional
-    for kind, words in (("buyer_internal_cost", "internal"), ("ad_spend", "ad spend"), ("other", "other")):
+    for kind, words in (("buyer_internal_cost", "internal"), ("ad_spend", "ad spend"), ("buyer_savings", "savings"), ("other", "other")):
         r = X.validate(dict(q, price_kind=kind), RES)
         assert r == {"rejected": f"quoted figure is {kind.replace('_', ' ')}, not a vendor's fee"}, r
     assert X.validate(dict(q), RES) == {"rejected": "price kind not stated"}                       # unlabelled: not trusted
@@ -293,6 +331,15 @@ def test_extract_rejects_prices_that_are_not_vendor_fees() -> None:
     c = cand("a", price_usd=500.0)
     assert G.apply(c, {"price_rejected": "quoted figure is ad spend, not a vendor's fee"})["price_usd"] == 500.0
     assert G.apply(c, {"price_rejected": "x"})["price_rejected"] == "x" and G.apply(c, {"price_rejected": "x"})["grounded"] is False
+
+
+def test_savings_claims_are_not_prices() -> None:
+    res = [{"title": "t", "url": "https://v.test", "snippet": "Owners may save $2,000 or more per month in direct costs."}]
+    q = {"price_usd": 2000, "price_unit": "month", "source_index": 0, "quote": "save $2,000 or more per month"}
+    assert X.validate(dict(q, price_kind="buyer_savings"), res) == {"rejected": "quoted figure is buyer savings, not a vendor's fee"}
+    assert X.VERSION >= 3 and "buyer_savings" in X.KINDS and "buyer_savings" in X.PROMPT
+    assert Q2.GROQ_PRICE_KIND["buyer_savings"] == "savings" and "savings" in {o.key for o in Q2.BY_ID["price_kind"].options}
+    assert not Q2.admission_failures_v2(Q2.BY_ID["price_kind"])                                   # the new option still passes admission
 
 
 def test_stale_priced_cache_entries_are_redone_for_free() -> None:
@@ -593,6 +640,7 @@ def test_jev_gate_only_demotes_and_only_through_validated_questions() -> None:
     trusted = {"price_kind", "audience"}
     assert "buyer's own cost" in R.jev_reason(ok(price_kind="internal"), trusted)
     assert "ad budget" in R.jev_reason(ok(price_kind="ads"), trusted)
+    assert "buyer saving" in R.jev_reason(ok(price_kind="savings"), trusted)
     assert "large-company" in R.jev_reason(ok(audience="large"), trusted)
     assert R.jev_reason(ok(price_kind="vendor", audience="small"), trusted) == ""           # agreement removes nothing
     for quiet in ("escape", "unstable"):
@@ -652,6 +700,7 @@ def test_gold_file_is_well_formed() -> None:
             assert ans in {o.key for o in Q2.BY_ID[qid].options}
     assert sum(1 for p in doc["probes"] if p["labels"].get("audience") == "large") >= 3     # enough to validate removal
     assert sum(1 for p in doc["probes"] if p["labels"].get("price_kind") in ("internal", "ads")) >= 3
+    assert sum(1 for p in doc["probes"] if p["labels"].get("price_kind") == "savings") >= 3     # the savings option is validated too
     items = TC.gold_items(doc, [])
     assert len(items) == len(doc["probes"]) and all(r["evidence_quote"] for r, _ in items)
 

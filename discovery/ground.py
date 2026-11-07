@@ -154,6 +154,8 @@ def ground_all_search(groq, search, census, rows: List[dict], cache_dir: str, n:
         _write(path, r["offer"], found, v=EXTRACT_VERSION)
         stats["called"] += 1
     stats["tokens"] = getattr(groq, "tokens_used", 0)
+    if getattr(groq, "tokens_by_key", None):
+        stats["tokens_by_key"] = {f"key{ki + 1}": n for ki, n in sorted(groq.tokens_by_key.items())}
     stats["searches_paid"] = getattr(search, "fresh", 0)
     stats["searches_cached"] = getattr(search, "hits", 0)
     return stats
