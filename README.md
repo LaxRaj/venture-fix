@@ -140,3 +140,28 @@ Jev run as a test of the model.
   buyer demands. That is discovered in a pilot.
 - Tell you the close rate. It reports the published range and nothing narrower.
 - Replace the calls. It ranks which numbers are worth a call.
+
+## Agent fleet (web app)
+
+```bash
+python3 fleetapp.py                      # http://127.0.0.1:8780, stub models unless ANTHROPIC_API_KEY is set
+python3 fleetapp.py --top 3 --auto 900   # cycle the top 3 ventures every 15 minutes
+python3 -I tests/test_fleet.py
+```
+
+Each venture (seeded from `ventures_seed.json`, the 15-venture shortlist) gets a team: an **orchestrator**
+(heavy model, `FLEET_ORCH_MODEL`) that plans the venture's tasks and reviews progress; **research, web
+(landing), demo, code, outreach and reply** workers that start on the cheapest tier (`FLEET_TIER0..2`,
+default haiku > sonnet > opus); and a **QA gate** (`fleet/qa.py`) that checks every output with deterministic
+rules (price shown, no fabricated proof or guarantees, opt-out line and postal address, personalised, safe code).
+Rejected output retries once with the QA feedback, then the task moves up a model tier. A model judge may add
+issues in live mode; it can never waive a deterministic one.
+
+What the agents do not do: send email, move money, or invent customers.
+- Emails sit in an **approval queue**. Approving re-runs QA on the exact text, refuses unsubscribed addresses,
+  and enforces a daily cap. With `FLEET_SMTP_HOST/USER/PASS` set they send; otherwise they are written to
+  `runs/outbox/*.eml`.
+- Revenue enters the ledger only from a signature-verified Stripe webhook (`POST /webhook/stripe`,
+  `STRIPE_WEBHOOK_SECRET`) or a manual entry. The landing button uses your Stripe Payment Link tagged with
+  `client_reference_id=<venture id>`.
+- Prospects are imported by you (CSV `name,company,email`); the research agent supplies the search recipes.
