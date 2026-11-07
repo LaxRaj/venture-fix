@@ -30,7 +30,7 @@ def key(c: dict) -> str:
 
 def pick(rows: List[dict], n: int, scope: str = "survivors") -> List[dict]:
     """Candidates to ground.  survivors: top-n screen survivors.  all: everything, survivors and near-misses first."""
-    todo = [r for r in rows if not r.get("grounded")]
+    todo = [r for r in rows if "price" not in (r.get("grounded_fields") or [])]   # a Census pool alone is not a grounded price
     if scope == "survivors":
         todo = [r for r in todo if r["screen"].get("verdict") == "SURVIVES"]
         todo.sort(key=lambda r: (r["screen"]["weeks_base"], -r["screen"]["per_hr"]))
