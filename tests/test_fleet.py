@@ -173,6 +173,28 @@ def test_publish_landing_tags_checkout_with_venture():
     assert "https://buy.stripe.com/abc?client_reference_id=v1" in html
 
 
+def test_openai_compat_provider_parses_and_stops_on_429():
+    from fleet import llm
+    real_post, real_sleep = llm._post_json, llm.time.sleep
+    llm.time.sleep = lambda _s: None
+    try:
+        llm._post_json = lambda url, body, headers, timeout=60: {
+            "choices": [{"message": {"content": "hello"}}], "usage": {"prompt_tokens": 7, "completion_tokens": 3}}
+        r = llm.OpenAICompatProvider("http://x/v1").complete(model="m", system="s", user="u", kind="research", tier=0)
+        assert (r.text, r.tokens_in, r.tokens_out) == ("hello", 7, 3)
+        assert llm.OpenAICompatProvider("http://x/v1").judge is False  # judge is opt-in on free providers
+
+        def limited(*a, **k):
+            raise RuntimeError("http://x returned HTTP 429: daily limit")
+        llm._post_json = limited
+        p = llm.OpenAICompatProvider("http://x/v1")
+        s = Store(":memory:"); s.seed_ventures([V])
+        r = Fleet(s, p).run_cycle("v1")
+        assert "stopped" in r and "rate limit" in r["stopped"], r  # whole cycle halts instead of failing every task
+    finally:
+        llm._post_json, llm.time.sleep = real_post, real_sleep
+
+
 if __name__ == "__main__":
     n = 0
     for name, fn in sorted(globals().items()):

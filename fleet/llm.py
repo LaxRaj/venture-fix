@@ -35,6 +35,7 @@ class Reply:
 
 class Provider:
     name = "base"
+    judge = os.environ.get("FLEET_JUDGE") != "0"  # whether the model judge runs on top of the deterministic gates
 
     def complete(self, *, model: str, system: str, user: str, kind: str, tier: int,
                  max_tokens: int = 1500, ctx: Optional[Dict[str, object]] = None) -> Reply:
@@ -66,8 +67,51 @@ class AnthropicProvider(Provider):
         raise RuntimeError(f"model call failed: {last}")
 
 
+class RateLimited(RuntimeError):
+    """The provider's (daily) limit is exhausted; further calls this cycle would only fail."""
+
+
+class OpenAICompatProvider(Provider):
+    """Any OpenAI-compatible chat endpoint: Ollama (free, local), Groq or Gemini free tiers.
+    FLEET_BASE_URL e.g. http://localhost:11434/v1, FLEET_API_KEY optional (Ollama needs none)."""
+    name = "openai"
+    judge = os.environ.get("FLEET_JUDGE") == "1"  # off by default: deterministic QA is the floor, and free calls are scarce
+
+    def __init__(self, base: str, key: str = "") -> None:
+        self.base, self.key = base.rstrip("/"), key
+
+    def complete(self, *, model, system, user, kind, tier, max_tokens=1500, ctx=None) -> Reply:
+        body = {"model": model, "max_tokens": max_tokens, "temperature": 0.3,
+                "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
+        headers = {"Authorization": f"Bearer {self.key}"} if self.key else {}
+        last: Optional[Exception] = None
+        for wait in (0, 8, 25):
+            time.sleep(wait)
+            try:
+                raw = _post_json(f"{self.base}/chat/completions", body, headers, timeout=300)
+                u = raw.get("usage") or {}
+                text = raw["choices"][0]["message"]["content"] or ""
+                return Reply(text, int(u.get("prompt_tokens", 0)), int(u.get("completion_tokens", len(text) // 4)), model)
+            except (KeyError, IndexError, TypeError) as exc:
+                raise RuntimeError(f"unexpected response shape: {exc}") from exc
+            except RuntimeError as exc:
+                last = exc
+                if re.search(r"HTTP 4(?!29)\d\d", str(exc)):
+                    break
+        if last and "HTTP 429" in str(last):
+            raise RateLimited(str(last)[:200])
+        raise RuntimeError(f"model call failed: {last}")
+
+
 def make_provider(name: Optional[str] = None) -> Provider:
-    name = name or ("anthropic" if os.environ.get("ANTHROPIC_API_KEY") else "stub")
+    if name is None:
+        name = ("anthropic" if os.environ.get("ANTHROPIC_API_KEY") else
+                "openai" if os.environ.get("FLEET_BASE_URL") else "stub")
+    if name == "openai":
+        base = os.environ.get("FLEET_BASE_URL")
+        if not base:
+            raise SystemExit("set FLEET_BASE_URL (Ollama: http://localhost:11434/v1)")
+        return OpenAICompatProvider(base, os.environ.get("FLEET_API_KEY", ""))
     if name == "anthropic":
         key = os.environ.get("ANTHROPIC_API_KEY")
         if not key:

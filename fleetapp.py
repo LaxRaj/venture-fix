@@ -173,7 +173,8 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=8780)
     ap.add_argument("--db", default=str(ROOT / "runs" / "fleet.db"))
-    ap.add_argument("--provider", choices=["anthropic", "stub"])
+    ap.add_argument("--provider", choices=["anthropic", "openai", "stub"],
+                    help="openai = any OpenAI-compatible endpoint via FLEET_BASE_URL (Ollama is free)")
     ap.add_argument("--top", type=int, default=3, help="ventures that start active")
     ap.add_argument("--auto", type=int, default=0, help="seconds between automatic cycles (0 = manual)")
     ap.add_argument("--budget", type=int, default=400_000, help="tokens per rolling 24h")

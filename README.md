@@ -165,3 +165,22 @@ What the agents do not do: send email, move money, or invent customers.
   `STRIPE_WEBHOOK_SECRET`) or a manual entry. The landing button uses your Stripe Payment Link tagged with
   `client_reference_id=<venture id>`.
 - Prospects are imported by you (CSV `name,company,email`); the research agent supplies the search recipes.
+
+### Running it for $0
+
+Tokens are the only real cost. Point the fleet at any OpenAI-compatible endpoint:
+
+```bash
+# Local and unlimited: install Ollama, pull three models of increasing size, then
+export FLEET_BASE_URL=http://localhost:11434/v1
+export FLEET_TIER0=<small-model> FLEET_TIER1=<mid-model> FLEET_TIER2=<largest-model-you-can-run>
+export FLEET_ORCH_MODEL=$FLEET_TIER2
+python3 fleetapp.py --provider openai --budget 2000000
+```
+
+Groq or Gemini free tiers work the same way (`FLEET_BASE_URL` + `FLEET_API_KEY`); check their current model
+names and daily limits first. When a free tier returns HTTP 429 the cycle stops and logs it rather than failing
+every task. The model judge is off for these providers (`FLEET_JUDGE=1` turns it on); the deterministic QA
+gates still run, and weaker models simply escalate and retry more often.
+Other costs stay free: host the landing page on Cloudflare Pages / Vercel Hobby, send from Gmail SMTP with an
+app password, and find prospects by hand. Stripe charges only a per-sale fee.

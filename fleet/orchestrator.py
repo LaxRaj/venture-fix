@@ -9,7 +9,7 @@ import time
 from typing import Dict, List, Optional, Tuple
 
 from . import qa, roles
-from .llm import JUDGE_MODEL, ORCH_MODEL, TIERS, Provider, parse_json
+from .llm import JUDGE_MODEL, ORCH_MODEL, TIERS, Provider, RateLimited, parse_json
 from .stub import DEFAULT_PLAN
 from .store import Store
 
@@ -45,7 +45,10 @@ class Fleet:
     def _call(self, vid: str, tid: Optional[int], model: str, kind: str, tier: int, system: str, user: str, ctx: Dict, max_tokens: int):
         if self.s.tokens_today() >= self.budget:
             raise BudgetExceeded(f"{self.budget} tokens in 24h used")
-        return self.p.complete(model=model, system=system, user=user, kind=kind, tier=tier, max_tokens=max_tokens, ctx=ctx)
+        try:
+            return self.p.complete(model=model, system=system, user=user, kind=kind, tier=tier, max_tokens=max_tokens, ctx=ctx)
+        except RateLimited as exc:  # free tier exhausted: stop the whole cycle instead of failing every task
+            raise BudgetExceeded(f"provider rate limit: {exc}") from exc
 
     def _record(self, tid, vid, tier, model, ok, issues, reply) -> None:
         self.s.x("insert into attempts(task_id,venture_id,tier,model,ok,issues,tokens_in,tokens_out,ts) values(?,?,?,?,?,?,?,?,?)",
@@ -65,7 +68,7 @@ class Fleet:
                     self._record(tid, vid, tier, model, False, [str(exc)[:200]], None)
                     return False, "", tier, [f"model error: {str(exc)[:200]}"]
                 issues = qa.gate(kind, reply.text, ctx)
-                if not issues and self.p.name != "stub":
+                if not issues and self.p.name != "stub" and self.p.judge:
                     issues = self._judge(vid, tid, kind, brief, reply.text, ctx)
                 self._record(tid, vid, tier, model, not issues, issues, reply)
                 if not issues:
