@@ -28,6 +28,7 @@ QUESTIONS_V2: Tuple[Question, ...] = (
             _opt("vendor", "A fee a business pays an outside vendor for this service", 1.0),
             _opt("internal", "What the buyer spends doing this work in-house", 0.0),
             _opt("ads", "An advertising or media budget", 0.0),
+            _opt("savings", "A saving or benefit the buyer gains", 0.0),
             _escape(),
         ),
     ),
@@ -112,7 +113,7 @@ ADMITTED_V2: Tuple[Question, ...] = _admit()
 BY_ID: Dict[str, Question] = {q.id: q for q in ADMITTED_V2}
 
 # Groq's price_kind labels (discovery/extract.py) -> this bank's option keys, for the cross-check.
-GROQ_PRICE_KIND = {"vendor_fee": "vendor", "buyer_internal_cost": "internal", "ad_spend": "ads"}
+GROQ_PRICE_KIND = {"vendor_fee": "vendor", "buyer_internal_cost": "internal", "ad_spend": "ads", "buyer_savings": "savings"}
 
 
 def build_state_v2(c: dict) -> Dict[str, str]:

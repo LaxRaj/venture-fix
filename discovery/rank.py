@@ -10,8 +10,8 @@ from .screen import CONV_BASE, OUT_PER_WEEK
 
 GRADE_ORDER = {"A": 0, "B": 1, "C": 2}
 # A stable, non-escape Jev answer in these sets removes a candidate from the shortlist (it can only demote).
-DEMOTING = {"price_kind": {"internal", "ads"}, "audience": {"large"}}
-REASON = {"price_kind": "Jev reads the quoted figure as the buyer's own cost or an ad budget, not a vendor fee",
+DEMOTING = {"price_kind": {"internal", "ads", "savings"}, "audience": {"large"}}
+REASON = {"price_kind": "Jev reads the quoted figure as the buyer's own cost, an ad budget or a buyer saving, not a vendor fee",
           "audience": "Jev reads the quoted figure as a large-company price"}
 
 

@@ -96,7 +96,7 @@ def score(items: List[tuple], tags: Dict[str, dict]) -> Dict[str, dict]:
                "stability": round(stab / tagged, 3) if tagged else None,
                "gold_agreement": round(agree / labelled, 3) if labelled else None,
                "groq_agreement": round(groq_ok / groq_n, 3) if groq_n else None, "groq_compared": groq_n}
-        demote = {"price_kind": {"internal", "ads"}, "audience": {"large"}}.get(q.id)
+        demote = {"price_kind": {"internal", "ads", "savings"}, "audience": {"large"}}.get(q.id)
         if demote:  # of the items whose gold label is a demoting class, how many did Jev get right?
             bad = [(r, l) for r, l in items if l.get(q.id) in demote and (tags.get(r["id"]) or {}).get("status") == "ok"]
             hit = sum(1 for r, l in bad if tags[r["id"]]["final"].get(q.id) == l[q.id])

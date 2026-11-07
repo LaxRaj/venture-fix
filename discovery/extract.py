@@ -14,8 +14,8 @@ from typing import Callable, Dict, List, Optional
 from .groq_client import extract_json_object
 from .verify import _found
 
-VERSION = 2  # bump when the prompt or acceptance rules change; older cached extractions are redone (searches are cached, so no new credits)
-KINDS = ("vendor_fee", "buyer_internal_cost", "ad_spend", "other")
+VERSION = 3  # bump when the prompt or acceptance rules change; older cached extractions are redone (searches are cached, so no new credits)
+KINDS = ("vendor_fee", "buyer_internal_cost", "ad_spend", "buyer_savings", "other")
 
 PROMPT = (
     "You read web search results and extract ONE price. Service: {offer}, sold to {buyer}.\n"
@@ -23,11 +23,13 @@ PROMPT = (
     "Find a price that buyers or competing vendors charge for this kind of service. Reply with one JSON object only: "
     '{{"price_usd": number or null, "price_unit": "month" | "year" | "project" | "per_unit" | "contingency" | null, '
     '"source_index": integer or null, "quote": "text copied exactly from that result containing the price" or null, '
-    '"price_kind": "vendor_fee" | "buyer_internal_cost" | "ad_spend" | "other", '
+    '"price_kind": "vendor_fee" | "buyer_internal_cost" | "ad_spend" | "buyer_savings" | "other", '
     '"audience": "small_business" | "enterprise" | "unclear"}}. '
     "price_kind: vendor_fee = what a business pays an outside vendor, agency or freelancer for this service; "
     "buyer_internal_cost = what the work costs the buyer to do in-house (salaries, software they run, their own costs); "
-    "ad_spend = an advertising or media budget, not a service fee; other = anything else. "
+    "ad_spend = an advertising or media budget, not a service fee; "
+    "buyer_savings = money the buyer saves, recovers or earns, or any benefit claim such as 'save $2,000 a month', which is not what they pay; "
+    "other = anything else. "
     "audience: enterprise if the price is for large companies or says enterprise, small_business if for small firms. "
     "Rules: use only the results above; copy the quote exactly; if no result states a price for this kind of "
     "service, answer with nulls. Do not estimate. You have no tools: do not try to open or browse anything."

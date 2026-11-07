@@ -451,6 +451,33 @@
     "price_kind": "vendor",
     "audience": "large"
    }
+  },
+  {
+   "id": "probe9",
+   "source": "real quote seen in this project, truncated (Dispatch Error Cost Recovery)",
+   "quote": "Some owner-operators with higher freight volumes or service fees may save $2,000 or more per month",
+   "labels": {
+    "price_kind": "savings",
+    "audience": "small"
+   }
+  },
+  {
+   "id": "probe10",
+   "source": "written by the assistant",
+   "quote": "Typical clients recover $3,500 a month in overpaid freight charges.",
+   "labels": {
+    "price_kind": "savings",
+    "audience": "escape"
+   }
+  },
+  {
+   "id": "probe11",
+   "source": "written by the assistant",
+   "quote": "Practices that switch usually save about $1,800 per month on supplies.",
+   "labels": {
+    "price_kind": "savings",
+    "audience": "small"
+   }
   }
  ],
  "probe_note": "Probes exist because the sampled gold set has almost no examples of the classes that trigger removal (buyer's own cost, ad budget, large company). Real quotes are marked; the rest are synthetic."
