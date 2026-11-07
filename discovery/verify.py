@@ -43,22 +43,35 @@ def _found(value: Optional[float], text: str) -> bool:
     return any(re.search(r"(?<![\d,.])" + re.escape(f) + r"(?![\d,])", text) for f in number_forms(value))
 
 
-def grade(c: dict, fetcher: Fetcher = fetch) -> Dict[str, object]:
-    urls = [(u, v) for u, v in ((c.get("price_url"), c.get("price_usd")), (c.get("pool_url"), c.get("pool_count"))) if u]
-    if not urls:
+def grade(c: dict, fetcher: Fetcher = fetch, census_check=None) -> Dict[str, object]:
+    """A needs the PRICE confirmed on its cited page; a confirmed pool alone is at most B."""
+    price_value = c.get("price_quoted") if c.get("price_quoted") is not None else c.get("price_usd")
+    checks = [("price", c.get("price_url"), price_value), ("pool", c.get("pool_url"), c.get("pool_count"))]
+    checks = [x for x in checks if x[1]]
+    if not checks:
         return {"grade": "C", "reason": "no cited URL"}
-    loaded, hit = False, False
+    loaded, price_hit, any_hit = False, False, False
     reasons = []
-    for url, value in urls:
+    for what, url, value in checks:
+        if url.startswith("https://api.census.gov/") and census_check is not None:
+            ok = census_check(url, value)  # re-query the API with the key from the environment
+            if ok is None:
+                reasons.append(f"census API unreachable {url}")
+                continue
+            loaded, any_hit = True, any_hit or ok
+            continue
         status, text = fetcher(url)
         if status is None or status >= 400:
             reasons.append(f"unreachable ({status}) {url}")
             continue
         loaded = True
         if _found(value, text):
-            hit = True
-    if hit:
-        return {"grade": "A", "reason": "cited page fetched and the figure appears on it"}
+            any_hit = True
+            price_hit = price_hit or what == "price"
+    if price_hit:
+        return {"grade": "A", "reason": "cited price page fetched and the figure appears on it"}
+    if any_hit:
+        return {"grade": "B", "reason": "pool figure confirmed; the price is still a guess or unconfirmed"}
     if loaded:
         return {"grade": "B", "reason": "page loaded, figure not found; check by hand"}
     return {"grade": "C", "reason": "; ".join(reasons) or "unreachable"}

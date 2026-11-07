@@ -58,8 +58,11 @@ class DailyLimit(RuntimeError):
     """Every configured model is out of tokens for the day."""
 
 
+THINK = re.compile(r"<think>.*?</think>", re.S)
+
+
 def _clean(text: str) -> str:
-    return CITATION.sub("", text or "")
+    return THINK.sub("", CITATION.sub("", text or ""))
 
 
 def extract_json_list(text: str) -> List[dict]:
@@ -122,13 +125,13 @@ class GroqProvider:
         while True:
             model = self.model  # raises DailyLimit when none are left
             body = {"model": model, "temperature": 0, "messages": [{"role": "user", "content": prompt}]}
+            body["max_completion_tokens"] = max_out
             if model.startswith("openai/gpt-oss"):
                 body["reasoning_effort"] = "low"
-                body["max_completion_tokens"] = max_out
                 if search:
                     body.update(tools=[{"type": "browser_search"}], tool_choice="auto")
             elif search:
-                raise RuntimeError(f"{model} has no known search tool; use an openai/gpt-oss model for grounding")
+                raise RuntimeError(f"{model} has no known search tool; use an openai/gpt-oss model for browsing")
             delay = 5.0
             for _ in range(self.retries):
                 try:
@@ -146,6 +149,8 @@ class GroqProvider:
                         self.sleep(max(wait, delay))
                         delay = min(delay * 2, 60.0)
                         continue
+                    if "tool_use_failed" in msg and not search:
+                        return ""  # the model tried to browse though no tools were offered: treat as "no answer"
                     if "HTTP 5" in msg:
                         self.sleep(delay)
                         delay = min(delay * 2, 60.0)
@@ -158,8 +163,12 @@ class GroqProvider:
         """Stage 1: ungrounded brainstorm.  Numbers are guesses."""
         return extract_json_list(self._chat(GEN_PROMPT + query_text, search=False, max_out=2500))
 
+    def complete(self, prompt: str, max_out: int = 600) -> str:
+        """Plain completion, no tools.  Used to read search snippets (about 1-2k tokens)."""
+        return self._chat(prompt, search=False, max_out=max_out)
+
     def ground(self, offer: str, buyer: str) -> Optional[dict]:
-        """Stage 2: capped web search for one candidate's price and pool."""
+        """Browsing grounding (legacy engine): capped web search for one candidate's price and pool."""
         text = self._chat(GROUND_PROMPT.format(offer=offer, buyer=buyer), search=True, max_out=1500)
         return extract_json_object(text)
 
@@ -197,6 +206,14 @@ class StubGroq:
                 "evidence": {k: f"STUB {k} evidence." for k in ("buyer", "pain", "supply", "workflow", "access")},
             })
         return out
+
+    def complete(self, prompt: str, max_out: int = 600) -> str:
+        m = re.search(r"\[(\d+)\] [^|]*\| ([^(]*?\$(\d+)[^(]*?)\s*\(", prompt)
+        if not m:
+            return '{"price_usd": null, "price_unit": null, "source_index": null, "quote": null}'
+        return json.dumps({"price_usd": int(m.group(3)), "price_unit": "month", "source_index": int(m.group(1)),
+                           "price_kind": "vendor_fee", "audience": "small_business",
+                           "quote": re.search(r"[^.]*\$\d+[^.]*", m.group(2)).group(0).strip()})
 
     def ground(self, offer: str, buyer: str) -> Optional[dict]:
         h = int(hashlib.sha256((offer + buyer).encode()).hexdigest()[:8], 16)
