@@ -29,6 +29,43 @@ def test_seed_matrix() -> None:
     assert qs == seeds.build_queries()  # deterministic
 
 
+def test_merged_rows_ignore_a_stale_grounded_file() -> None:
+    import discover as DV
+    def row(i, price):
+        c = cand(f"offer{i} s{i}", price_usd=float(price), hours_per_account_month=10.0, pool_count=50000.0)
+        c["id"] = f"v{i}"; c["sector"] = "law firms"; c["screen"] = S.screen(c); return c
+    old, new = [row(0, 750), row(1, 300)], [row(0, 750), row(1, 300), row(2, 900)]      # a later dedupe added a third candidate
+    with tempfile.TemporaryDirectory() as o:
+        json.dump(new, open(os.path.join(o, "screened.json"), "w"))
+        json.dump(old, open(os.path.join(o, "grounded.json"), "w"))                      # stale: written before the third arrived
+        os.makedirs(os.path.join(o, "cache_ground_pools"))
+        G._write(os.path.join(o, "cache_ground_pools", G.key(new[2]) + ".json"), "offer2 s2",
+                 {"pool_count": 12345.0, "pool_url": "https://api.census.gov/x", "pool_basis": "census", "grounded_via": "census"})
+        merged = DV._merged_rows(o)
+        assert [r["id"] for r in merged] == ["v0", "v1", "v2"]                            # the new candidate is present
+        assert merged[2]["pool_count"] == 12345.0 and merged[2]["grounded_fields"] == ["pool"]   # and picks up its cached pool
+        assert merged[0]["screen"] == S.screen(merged[0]) or merged[0]["screen"]["verdict"]    # untouched rows keep their screen
+
+
+def test_creator_seed_set() -> None:
+    core, cre = seeds.build_queries(), seeds.build_creator_queries()
+    assert len(core) == len(seeds.SECTORS) * len(seeds.PAINS)                          # the core matrix is untouched
+    assert len(cre) == len(seeds.CREATOR_BUYERS) * len(seeds.CREATOR_JOBS) == 77
+    assert len({q["id"] for q in cre}) == len(cre)                                      # unique
+    assert not ({q["id"] for q in cre} & {q["id"] for q in core})                       # and disjoint from the core set
+    assert cre == seeds.build_creator_queries()                                         # deterministic
+    for q in cre:
+        assert q["sector"] in q["text"] and q["pain"] in q["text"]
+        assert q["sector"] in seeds.CREATOR_BUYERS and q["pain"] in seeds.CREATOR_JOBS
+        assert q["sector"] not in seeds.SECTORS                                         # never conflated with a core sector
+    assert {q["model"] for q in cre} == set(seeds.CREATOR_MODELS)
+    assert "per-video or per-clip fee" in {q["model"] for q in cre}
+    assert seeds.all_queries() == core + cre                                            # core keeps its order and ids
+    assert seeds.build_creator_queries(5) == cre[:5]
+    # none of the creator jobs is one of the core pains that produced nonsense in creator sectors
+    assert not (set(seeds.CREATOR_JOBS) & set(seeds.PAINS))
+
+
 def test_extract_json() -> None:
     assert extract_json_list('Sure!\n[{"offer": "a"}, 3, {"offer": "b"}] done') == [{"offer": "a"}, {"offer": "b"}]
     assert extract_json_list("no json here") == []
