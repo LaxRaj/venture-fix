@@ -1,23 +1,23 @@
 # Venture universe
 
-Queries run: 320. Raw candidates: 1567. Unique after clustering: 1240.
+Queries run: 397. Raw candidates: 1993. Unique after clustering: 1577.
 
 ## Screen verdicts
 
 | Verdict | Count |
 |---|---|
-| FAILS_HR | 661 |
+| FAILS_HR | 908 |
+| SURVIVES | 323 |
 | CONTINGENCY | 286 |
-| SURVIVES | 261 |
-| FAILS_POOL | 23 |
-| INSUFFICIENT | 7 |
-| UNIT | 2 |
+| INSUFFICIENT | 30 |
+| FAILS_POOL | 25 |
+| UNIT | 5 |
 
-Candidates whose price or pool was replaced by a cited, search-grounded figure: 918. Every other number is a model guess, so its verdict is provisional. Hours per account are always a guess.
+Candidates whose price or pool was replaced by a cited, search-grounded figure: 951. Every other number is a model guess, so its verdict is provisional. Hours per account are always a guess.
 
 INSUFFICIENT, UNIT and CONTINGENCY rows were not screened; they need a monthly price, hours and a pool figure before the test can score them.
 
-Survivors by evidence grade: {'B': 176, 'A': 57, 'C': 28}. Grade C survivors need a manual price/pool check before they can be shortlisted.
+Survivors by evidence grade: {'B': 177, 'A': 71, 'C': 75}. Grade C survivors need a manual price/pool check before they can be shortlisted.
 
 ## Saturation (new unique candidates per 25 queries)
 
@@ -35,7 +35,10 @@ Survivors by evidence grade: {'B': 176, 'A': 57, 'C': 28}. Grade C survivors nee
 | 226-250 | 122 | 4.88 |
 | 251-275 | 107 | 4.28 |
 | 276-300 | 107 | 4.28 |
-| 301-320 | 82 | 4.1 |
+| 301-325 | 105 | 4.2 |
+| 326-350 | 122 | 4.88 |
+| 351-375 | 114 | 4.56 |
+| 376-397 | 78 | 3.55 |
 
 A falling per-query rate means the seed matrix is covering the space; a flat rate means more queries would still find new ventures.
 
@@ -69,84 +72,84 @@ A falling per-query rate means the seed matrix is covering the space; a flat rat
 - Blockers: licence, compliance, high competition from agencies
 - Test: Contact 300 Physical therapy clinics over 3 weeks via: LinkedIn outreach to clinic owners. Offer: Qualified Call Leads at $2,000/mo. Expected paid at 0.3%: about 0.9. Pass: at least 1 paid, or 3 booked calls from a warm reply.
 
-### 5. Dispute Data Entry Automation
+### 5. Short‑Form Clip Pack
+- Buyer: Podcast host
+- $1,000/mo, 4 h/account, $250.0/hr, 3 accounts for $3k, 10.0 weeks at base conversion (30.0 at stress); survives stress reach test: True
+- Evidence grade A: cited price page fetched and the figure appears on it; grounded fields: price
+- Blockers: saturation, need for fast turnaround
+- Test: Contact 300 Podcast host over 3 weeks via: Podcast‑host Facebook groups. Offer: Short‑Form Clip Pack at $1,000/mo. Expected paid at 0.3%: about 0.9. Pass: at least 1 paid, or 3 booked calls from a warm reply.
+
+### 6. Dispute Data Entry Automation
 - Buyer: small accounting & bookkeeping firms
 - $900/mo, 0.8 h/account, $1125.0/hr, 4 accounts for $3k, 13.3 weeks at base conversion (40.0 at stress); survives stress reach test: True
 - Evidence grade A: cited price page fetched and the figure appears on it; grounded fields: pool, price
 - Blockers: must know specific software, data‑privacy compliance
 - Test: Contact 300 small accounting & bookkeeping firms over 3 weeks via: Reddit r/accounting. Offer: Dispute Data Entry Automation at $900/mo. Expected paid at 0.3%: about 0.9. Pass: at least 1 paid, or 3 booked calls from a warm reply.
 
-### 6. Social Media DM Outreach
+### 7. Social Media DM Outreach
 - Buyer: SaaS founders
 - $999/mo, 1 h/account, $999.0/hr, 4 accounts for $3k, 13.3 weeks at base conversion (40.0 at stress); survives stress reach test: True
 - Evidence grade A: cited price page fetched and the figure appears on it; grounded fields: pool, price
 - Blockers: DM limits, spam detection
 - Test: Contact 300 SaaS founders over 3 weeks via: Twitter/X. Offer: Social Media DM Outreach at $999/mo. Expected paid at 0.3%: about 0.9. Pass: at least 1 paid, or 3 booked calls from a warm reply.
 
-### 7. Claim Filing Assistant
+### 8. Claim Filing Assistant
 - Buyer: Dropship suppliers
 - $800/mo, 1.5 h/account, $533.3/hr, 4 accounts for $3k, 13.3 weeks at base conversion (40.0 at stress); survives stress reach test: True
 - Evidence grade A: cited price page fetched and the figure appears on it; grounded fields: pool, price
 - Blockers: Supplier policies, claim limits
 - Test: Contact 300 Dropship suppliers over 3 weeks via: LinkedIn, Reddit r/dropship. Offer: Claim Filing Assistant at $800/mo. Expected paid at 0.3%: about 0.9. Pass: at least 1 paid, or 3 booked calls from a warm reply.
 
-### 8. Listing Optimization Service
+### 9. Listing Optimization Service
 - Buyer: small manufacturers
 - $999/mo, 2 h/account, $499.5/hr, 4 accounts for $3k, 13.3 weeks at base conversion (40.0 at stress); survives stress reach test: True
 - Evidence grade A: cited price page fetched and the figure appears on it; grounded fields: price
 - Blockers: marketplace policy changes
 - Test: Contact 300 small manufacturers over 3 weeks via: Twitter direct messages. Offer: Listing Optimization Service at $999/mo. Expected paid at 0.3%: about 0.9. Pass: at least 1 paid, or 3 booked calls from a warm reply.
 
-### 9. Warranty Claim Follow‑Up
+### 10. Warranty Claim Follow‑Up
 - Buyer: Roofing & HVAC contractors
 - $900/mo, 2 h/account, $450.0/hr, 4 accounts for $3k, 13.3 weeks at base conversion (40.0 at stress); survives stress reach test: True
 - Evidence grade A: cited price page fetched and the figure appears on it; grounded fields: pool, price
 - Blockers: Understanding manufacturer claim processes, need for contract language
 - Test: Contact 300 Roofing & HVAC contractors over 3 weeks via: Industry webinars and podcasts. Offer: Warranty Claim Follow‑Up at $900/mo. Expected paid at 0.3%: about 0.9. Pass: at least 1 paid, or 3 booked calls from a warm reply.
 
-### 10. Monthly Sales Tax Filing Service
+### 11. Monthly Sales Tax Filing Service
 - Buyer: Small accounting firms serving retail clients
 - $999/mo, 3 h/account, $333.0/hr, 4 accounts for $3k, 13.3 weeks at base conversion (40.0 at stress); survives stress reach test: True
 - Evidence grade A: cited price page fetched and the figure appears on it; grounded fields: pool, price
 - Blockers: state licensing, varying state rules, competition from software
 - Test: Contact 300 Small accounting firms serving retail clients over 3 weeks via: LinkedIn groups for accountants. Offer: Monthly Sales Tax Filing Service at $999/mo. Expected paid at 0.3%: about 0.9. Pass: at least 1 paid, or 3 booked calls from a warm reply.
 
-### 11. Expense Reconciliation Service
+### 12. Expense Reconciliation Service
 - Buyer: solo practitioners
 - $850/mo, 4 h/account, $212.5/hr, 4 accounts for $3k, 13.3 weeks at base conversion (40.0 at stress); survives stress reach test: True
 - Evidence grade A: cited price page fetched and the figure appears on it; grounded fields: pool, price
 - Blockers: must handle confidential client data, possible need for a BAA
 - Test: Contact 300 solo practitioners over 3 weeks via: Facebook ads targeting law‑firm owners. Offer: Expense Reconciliation Service at $850/mo. Expected paid at 0.3%: about 0.9. Pass: at least 1 paid, or 3 booked calls from a warm reply.
 
-### 12. Local SEO Citation Service
+### 13. Local SEO Citation Service
 - Buyer: Chiropractic clinics
 - $800/mo, 5 h/account, $160.0/hr, 4 accounts for $3k, 13.3 weeks at base conversion (40.0 at stress); survives stress reach test: True
 - Evidence grade A: cited price page fetched and the figure appears on it; grounded fields: pool, price
 - Blockers: Time to verify NAP consistency, competition from SEO firms
 - Test: Contact 300 Chiropractic clinics over 3 weeks via: Upwork gig targeting health‑care providers. Offer: Local SEO Citation Service at $800/mo. Expected paid at 0.3%: about 0.9. Pass: at least 1 paid, or 3 booked calls from a warm reply.
 
-### 13. Quarterly Tax Prep & Filing
+### 14. Full Episode Edit
+- Buyer: Twitch podcasters
+- $800/mo, 5 h/account, $160.0/hr, 4 accounts for $3k, 13.3 weeks at base conversion (40.0 at stress); survives stress reach test: True
+- Evidence grade A: cited price page fetched and the figure appears on it; grounded fields: price
+- Blockers: agency rates $200‑$400 per episode
+- Test: Contact 300 Twitch podcasters over 3 weeks via: Podcasting forums, Reddit r/podcasting. Offer: Full Episode Edit at $800/mo. Expected paid at 0.3%: about 0.9. Pass: at least 1 paid, or 3 booked calls from a warm reply.
+
+### 15. Quarterly Tax Prep & Filing
 - Buyer: HVAC service companies
 - $750/mo, 5 h/account, $150.0/hr, 4 accounts for $3k, 13.3 weeks at base conversion (40.0 at stress); survives stress reach test: True
 - Evidence grade A: cited price page fetched and the figure appears on it; grounded fields: pool, price
 - Blockers: need CPA partnership for filing, IRS e‑file registration
 - Test: Contact 300 HVAC service companies over 3 weeks via: Nextdoor neighborhood ads. Offer: Quarterly Tax Prep & Filing at $750/mo. Expected paid at 0.3%: about 0.9. Pass: at least 1 paid, or 3 booked calls from a warm reply.
 
-### 14. Monthly Blog & SEO Refresh
-- Buyer: Small medical clinics
-- $899/mo, 8 h/account, $112.4/hr, 4 accounts for $3k, 13.3 weeks at base conversion (40.0 at stress); survives stress reach test: True
-- Evidence grade A: cited price page fetched and the figure appears on it; grounded fields: pool, price
-- Blockers: Medical advertising regulations, need for credentialed author, high competition
-- Test: Contact 300 Small medical clinics over 3 weeks via: LinkedIn groups for clinic managers. Offer: Monthly Blog & SEO Refresh at $899/mo. Expected paid at 0.3%: about 0.9. Pass: at least 1 paid, or 3 booked calls from a warm reply.
-
-### 15. Geo‑Targeted Ad Script
-- Buyer: Local roofing firms
-- $750/mo, 8 h/account, $93.8/hr, 4 accounts for $3k, 13.3 weeks at base conversion (40.0 at stress); survives stress reach test: True
-- Evidence grade A: cited price page fetched and the figure appears on it; grounded fields: pool, price
-- Blockers: Ad platform policy, need for ad spend budget
-- Test: Contact 300 Local roofing firms over 3 weeks via: Nextdoor neighborhood posts. Offer: Geo‑Targeted Ad Script at $750/mo. Expected paid at 0.3%: about 0.9. Pass: at least 1 paid, or 3 booked calls from a warm reply.
-
-## Survivors flagged as enterprise-scale prices (16)
+## Survivors flagged as enterprise-scale prices (19)
 
 Monthly price above the flag threshold: unlikely for the small businesses one person can reach, so kept off the shortlist.
 
@@ -166,8 +169,11 @@ Monthly price above the flag threshold: unlikely for the small businesses one pe
 - SEO‑Optimized Landing Page Pack (Local insurance agencies expanding online): $9,726/mo
 - Sales Deck Creation (SaaS sales teams): $3,000/mo
 - Invoice Error Flagging (Gas distributors): $60/mo
+- Quote Graphic Bundle (Podcast host): $3,800/mo
+- Deal Negotiator (podcast hosts): $5,000/mo
+- Spanish Translation of Captions (online coaches selling bilingual courses): $1,500/mo
 
-## Survivors priced per unit or project (117): monthly price derived from a GUESSED volume
+## Survivors priced per unit or project (155): monthly price derived from a GUESSED volume
 
 Kept off the shortlist: a guessed volume on top of a price that is usually also a guess. Treat as leads to check.
 
@@ -180,6 +186,7 @@ Kept off the shortlist: a guessed volume on top of a price that is usually also 
 - Carrier Billing Error Recovery (Regional insurance agencies): $28,400/project x 1 = $28,400/mo, 1 accounts, 3.3 wk (cited price)
 - Video Testimonial Production (Regional insurance agencies): $3,000/project x 1 = $3,000/mo, 1 accounts, 3.3 wk (cited price)
 - Invoice Error Flagging (Gas distributors): $60/per_unit x 50 = $3,000/mo, 1 accounts, 3.3 wk (guessed price)
+- Spanish Translation of Captions (online coaches selling bilingual courses): $1,500/project x 5 = $7,500/mo, 1 accounts, 3.3 wk (cited price)
 - Invoice Dispute Auditing (regional freight brokers): $200/per_unit x 8 = $1,600/mo, 2 accounts, 6.7 wk (guessed price)
 - Bid Package Preparation (Freight brokers seeking government or large corporate contracts): $350/per_unit x 5 = $1,750/mo, 2 accounts, 6.7 wk (guessed price)
 - Buyer Representation Proposal (independent real estate agents within brokerages): $2,999/project x 1 = $2,999/mo, 2 accounts, 6.7 wk (cited price)
@@ -197,6 +204,7 @@ Kept off the shortlist: a guessed volume on top of a price that is usually also 
 - Client‑Testimonial Reel Package (Criminal‑defense firms): $1,200/project x 1 = $1,200/mo, 3 accounts, 10.0 wk (guessed price)
 - Claim Denial Appeal Service (mortgage brokers handling borrower claims): $200/per_unit x 5 = $1,000/mo, 3 accounts, 10.0 wk (guessed price)
 - WhatsApp Lead Outreach (Amazon sellers): $20/per_unit x 50 = $1,000/mo, 3 accounts, 10.0 wk (guessed price)
+- BatchTrim Studio (Small editing agencies): $239/per_unit x 5 = $1,195/mo, 3 accounts, 10.0 wk (cited price)
 - Carrier Contract Drafting (3PL firms): $180/per_unit x 5 = $900/mo, 4 accounts, 13.3 wk (guessed price)
 - Customs Claim Drafting (customs brokers): $150/per_unit x 5 = $750/mo, 4 accounts, 13.3 wk (guessed price)
 - Amazon Marketplace Listing Audit (customs brokers importing goods for Amazon sellers): $75/per_unit x 10 = $750/mo, 4 accounts, 13.3 wk (guessed price)
@@ -209,8 +217,6 @@ Kept off the shortlist: a guessed volume on top of a price that is usually also 
 - Denial Response Drafting (small accounting & bookkeeping firms): $180/per_unit x 5 = $900/mo, 4 accounts, 13.3 wk (guessed price)
 - Supplier Agreement Drafting (wholesale distributors): $930/project x 1 = $930/mo, 4 accounts, 13.3 wk (cited price)
 - Contractual Claim Analysis (Marketing agencies): $150/per_unit x 5 = $750/mo, 4 accounts, 13.3 wk (guessed price)
-- Claim Review Audit (staffing firms): $199/per_unit x 5 = $995/mo, 4 accounts, 13.3 wk (cited price)
-- Lease Proposal Drafting (farm equipment lease companies): $150/per_unit x 5 = $750/mo, 4 accounts, 13.3 wk (guessed price)
 
 ## Survivors needing a manual evidence check (grade C)
 
@@ -242,6 +248,18 @@ Kept off the shortlist: a guessed volume on top of a price that is usually also 
 - Utility Compliance Filing (Small utility companies): no cited URL
 - Energy Tax Credit Assistance (Small renewable owners): no cited URL
 - Invoice Error Flagging (Gas distributors): no cited URL
+- FullEpisode Edit (YouTubers 10K+ subs): no cited URL
+- Thumbnail & Intro Pack (YouTubers 10K+ subs): no cited URL
+- Live Stream Edit (YouTubers 10K+ subs): no cited URL
+- Monthly Deal Tracker (YouTubers 10K+ subs): no cited URL
+- Title Copywriting (podcast hosts): no cited URL
+- Title Revision (podcast hosts): no cited URL
+- Audiogram + Caption Service (Podcast host): no cited URL
+- Episode Blog Post Draft (Podcast host): no cited URL
+- Sponsorship Scout (podcast hosts): no cited URL
+- Creative Brief Builder (podcast hosts): no cited URL
+- Episode Highlight Reel (podcast hosts): no cited URL
+- Community FAQ Bot (podcast hosts): no cited URL
 
 ## All candidates
 
@@ -1487,3 +1505,340 @@ Kept off the shortlist: a guessed volume on top of a price that is usually also 
 | v1237 | Rate & Availability Clean | CONTINGENCY |  |  |
 | v1238 | Price Tracker | FAILS_HR | 53.3 | 250.0 |
 | v1239 | Guest Communication Hub | FAILS_HR | 23.3 | 286.7 |
+| v1240 | YouTube Shorts Pack | FAILS_HR | 29.2 | 30.0 |
+| v1241 | Batch Clip Service | FAILS_HR | 31.2 | 40.0 |
+| v1242 | Instant Shorts Turnaround | FAILS_HR | 30.0 | 56.7 |
+| v1243 | Thumbnail & Clip Bundle | FAILS_HR | 30.0 | 26.7 |
+| v1244 | Analytics‑Driven Clip Optimization | FAILS_HR | 30.0 | 33.3 |
+| v1245 | QuickCut Clip | SURVIVES | 180.0 | 113.3 |
+| v1246 | FullEpisode Edit | SURVIVES | 100.0 | 26.7 |
+| v1247 | Thumbnail & Intro Pack | SURVIVES | 500.0 | 100.0 |
+| v1248 | Live Stream Edit | SURVIVES | 120.0 | 30.0 |
+| v1249 | Script to Video | FAILS_HR | 40.0 | 126.7 |
+| v1250 | Channel Audit & Edit Plan | FAILS_HR | 30.0 | 66.7 |
+| v1251 | Clip‑to‑Reel | FAILS_HR | 15.0 | 333.3 |
+| v1252 | Caption‑Genie | FAILS_HR | 20.0 | 500.0 |
+| v1253 | Thumbnail‑Maker | FAILS_HR | 16.7 | 400.0 |
+| v1254 | Cross‑Post Scheduler | FAILS_HR | 17.5 | 286.7 |
+| v1255 | Analytics‑Boost | FAILS_HR | 40.0 | 250.0 |
+| v1256 | Voice‑over AI | FAILS_HR | 20.0 | 200.0 |
+| v1257 | Podcast Intro/Outro Pack | FAILS_HR | 30.0 | 83.3 |
+| v1258 | Episode Cleanup & Noise Reduction | FAILS_HR | 26.7 | 126.7 |
+| v1259 | Episode Transcription & Show Notes | FAILS_HR | 30.0 | 66.7 |
+| v1260 | Episode Editing & Storytelling | FAILS_HR | 31.2 | 40.0 |
+| v1261 | Monthly Podcast Hosting & Analytics | FAILS_HR | 45.0 | 113.3 |
+| v1262 | Episode Promotion & Social Clips | FAILS_HR | 33.3 | 50.0 |
+| v1263 | Deal Scout | FAILS_HR | 37.5 | 66.7 |
+| v1264 | Deal Close | INSUFFICIENT |  |  |
+| v1265 | Deal Pack | INSUFFICIENT |  |  |
+| v1266 | Deal Audit | INSUFFICIENT |  |  |
+| v1267 | Deal Tracker | FAILS_HR | 40.0 | 83.3 |
+| v1268 | Deal Pitch | INSUFFICIENT |  |  |
+| v1269 | YouTube Community Manager | FAILS_HR | 29.2 | 30.0 |
+| v1270 | Membership Perks Producer | FAILS_HR | 33.3 | 20.0 |
+| v1271 | Live‑Stream Chat Moderator | FAILS_HR | 25.0 | 66.7 |
+| v1272 | Sponsorship Outreach Coordinator | FAILS_HR | 40.0 | 26.7 |
+| v1273 | Analytics & Content Calendar Service | FAILS_HR | 33.3 | 33.3 |
+| v1274 | Engagement Heatmap | FAILS_HR | 26.0 | 256.7 |
+| v1275 | Monetization Optimizer | FAILS_HR | 24.5 | 206.7 |
+| v1276 | Audience Sentiment Tracker | FAILS_HR | 48.0 | 416.7 |
+| v1277 | Script Writing | FAILS_HR | 30.0 | 33.3 |
+| v1278 | Research & Show Notes | FAILS_HR | 31.2 | 40.0 |
+| v1279 | SEO & Metadata Optimization | FAILS_HR | 33.3 | 50.0 |
+| v1280 | Thumbnail Copy & Captioning | FAILS_HR | 36.0 | 56.7 |
+| v1281 | Content Calendar & Planning | FAILS_HR | 31.4 | 46.7 |
+| v1282 | Social Media Teaser Writing | FAILS_HR | 37.5 | 66.7 |
+| v1283 | English Closed Captions | INSUFFICIENT |  |  |
+| v1284 | Spanish Subtitles (Translation + Timing) | INSUFFICIENT |  |  |
+| v1285 | German Dubbing (Voiceover + Sync) | INSUFFICIENT |  |  |
+| v1286 | Multi‑Language Caption Pack (5 languages) | INSUFFICIENT |  |  |
+| v1287 | Audio Clean‑up & Noise Reduction | INSUFFICIENT |  |  |
+| v1288 | Thumbnail Text Overlay Design | INSUFFICIENT |  |  |
+| v1289 | Client Outreach Email | FAILS_HR | 50.0 | 50.0 |
+| v1290 | Monthly Deal Tracker | SURVIVES | 75.0 | 66.7 |
+| v1291 | Brand Pitch Deck Prep | FAILS_HR | 50.0 | 33.3 |
+| v1292 | Sponsorship Negotiation Support | FAILS_HR | 50.0 | 30.0 |
+| v1293 | ClipAuto | FAILS_HR | 15.0 | 666.7 |
+| v1294 | AutoIntro | FAILS_HR | 20.0 | 1000.0 |
+| v1295 | TransClip | FAILS_HR | 15.0 | 833.3 |
+| v1296 | SoundClean | FAILS_HR | 26.7 | 1250.0 |
+| v1297 | SocialShare | FAILS_HR | 13.3 | 500.0 |
+| v1298 | EpisodePlanner | FAILS_HR | 25.0 | 2000.0 |
+| v1299 | QuickCut Video Editing | FAILS_HR | 25.0 | 40.0 |
+| v1300 | Script‑to‑Screen Sync | FAILS_HR | 22.5 | 56.7 |
+| v1301 | Thumbnail & Branding Pack | FAILS_HR | 30.0 | 83.3 |
+| v1302 | Post‑Production QA | FAILS_HR | 30.0 | 113.3 |
+| v1303 | Episode Scheduling & Upload | FAILS_HR | 35.0 | 143.3 |
+| v1304 | Analytics & Optimization | FAILS_HR | 22.0 | 93.3 |
+| v1305 | Title Copywriting | SURVIVES | 200.0 | 100.0 |
+| v1306 | Thumbnail + Title Bundle | FAILS_HR | 33.3 | 200.0 |
+| v1307 | Title Revision | SURVIVES | 400.0 | 250.0 |
+| v1308 | Thumbnail + Title Package | FAILS_HR | 55.0 | 93.3 |
+| v1309 | Short‑Form Clip Pack | SURVIVES | 250.0 | 10.0 |
+| v1310 | Audiogram + Caption Service | SURVIVES | 60.0 | 56.7 |
+| v1311 | Quote Graphic Bundle | SURVIVES | 1900.0 | 3.3 |
+| v1312 | Episode Blog Post Draft | SURVIVES | 60.0 | 33.3 |
+| v1313 | Caption‑Only Shorts Service | FAILS_HR | 53.3 | 126.7 |
+| v1314 | Auto‑Transcribe & Show Notes Generator | FAILS_HR | 22.5 | 223.3 |
+| v1315 | Dynamic Intro/Outro Mixer | UNIT |  |  |
+| v1316 | Episode Asset Organizer | FAILS_HR | 30.0 | 666.7 |
+| v1317 | Ad‑Slot Scheduler & Tracker | FAILS_HR | 53.3 | 126.7 |
+| v1318 | Sponsorship Scout | SURVIVES | 62.5 | 40.0 |
+| v1319 | Deal Negotiator | SURVIVES | 1666.7 | 3.3 |
+| v1320 | Creative Brief Builder | SURVIVES | 75.0 | 66.7 |
+| v1321 | Performance Tracker | FAILS_HR | 33.0 | 103.3 |
+| v1322 | Deal Pipeline Manager | FAILS_HR | 42.5 | 60.0 |
+| v1323 | Clip‑to‑Social | SURVIVES | 75.0 | 66.7 |
+| v1324 | Community Post Pack | FAILS_HR | 30.0 | 83.3 |
+| v1325 | Episode Highlight Reel | SURVIVES | 200.0 | 33.3 |
+| v1326 | Community FAQ Bot | SURVIVES | 66.7 | 50.0 |
+| v1327 | Member‑Only Teaser | SURVIVES | 75.0 | 133.3 |
+| v1328 | Social Caption Pack | FAILS_HR | 30.0 | 113.3 |
+| v1329 | Growth Snapshot | FAILS_HR | 37.5 | 66.7 |
+| v1330 | Audience Insight | FAILS_HR | 40.0 | 50.0 |
+| v1331 | Monetization Tracker | FAILS_HR | 45.0 | 56.7 |
+| v1332 | Content Performance Review | FAILS_HR | 40.0 | 83.3 |
+| v1333 | Competitive Benchmarking | FAILS_HR | 44.0 | 46.7 |
+| v1334 | AI Script Draft Generator | FAILS_HR | 14.5 | 346.7 |
+| v1335 | Research Clip Organizer | FAILS_HR | 16.3 | 206.7 |
+| v1336 | Show‑Notes Auto‑Formatter | FAILS_HR | 6.0 | 16666.7 |
+| v1337 | Episode KPI Dashboard | FAILS_HR | 19.0 | 526.7 |
+| v1338 | Full‑service captioning | FAILS_HR | 30.0 | 83.3 |
+| v1339 | Episode‑by‑episode translation (English → Spanish) | FAILS_HR | 30.0 | 56.7 |
+| v1340 | English‑to‑German dubbing (voice‑over) | FAILS_HR | 31.2 | 40.0 |
+| v1341 | Multi‑language subtitle bundle (English, Spanish, French) | FAILS_HR | 35.0 | 30.0 |
+| v1342 | Clip‑Based Guest Outreach | FAILS_HR | 16.0 | 313.3 |
+| v1343 | Short‑Form Promo Clip Creation | SURVIVES | 1666.7 | 6.7 |
+| v1344 | Lead Magnet Audio Snippet | SURVIVES | 60.0 | 166.7 |
+| v1345 | Episode Guest Pitch Deck | SURVIVES | 96.0 | 43.3 |
+| v1346 | Weekly Audience Insight Report | FAILS_HR | 30.0 | 113.3 |
+| v1347 | Custom Call‑to‑Action Audio Bumper | SURVIVES | 137.5 | 93.3 |
+| v1348 | Weekly 5‑Clip Video Trim | FAILS_HR | 31.2 | 40.0 |
+| v1349 | Monthly 20‑Clip Bulk Service | FAILS_HR | 45.0 | 13.3 |
+| v1350 | On‑Demand Clip‑Per‑Clip | SURVIVES | 112.5 | 46.7 |
+| v1351 | Automated Clip Delivery via Zapier | FAILS_HR | 37.5 | 66.7 |
+| v1352 | Premium Caption‑Ready Clips | FAILS_HR | 35.0 | 30.0 |
+| v1353 | Quarterly Clip‑Strategy Consultation | INSUFFICIENT |  |  |
+| v1354 | Auto‑Transcribe & Sync | FAILS_HR | 14.5 | 346.7 |
+| v1355 | AI‑Cut Drafts | FAILS_HR | 40.0 | 500.0 |
+| v1356 | Style‑Guide Enforcer | FAILS_HR | 15.0 | 666.7 |
+| v1357 | Bulk Caption Exporter | FAILS_HR | 32.7 | 206.7 |
+| v1358 | Title Optimization | FAILS_HR | 26.7 | 250.0 |
+| v1359 | Thumbnail Refresh | FAILS_POOL | 60.0 | 333.3 |
+| v1360 | Title A/B Testing | FAILS_HR | 24.0 | 166.7 |
+| v1361 | 5‑Clip Social Pack | SURVIVES | 100.0 | 33.3 |
+| v1362 | Audio‑to‑Blog Transcription + Quote Graphics | SURVIVES | 90.0 | 30.0 |
+| v1363 | Weekly Batch Editing Service | FAILS_HR | 45.0 | 13.3 |
+| v1364 | One‑Click Caption & Subtitles Service | SURVIVES | 120.0 | 43.3 |
+| v1365 | Full‑service podcast edit | FAILS_HR | 31.2 | 40.0 |
+| v1366 | Show‑notes & transcript package | FAILS_HR | 24.0 | 83.3 |
+| v1367 | Episode publishing & distribution | FAILS_HR | 26.7 | 126.7 |
+| v1368 | Audio branding kit (intro/outro music & voice‑over) | SURVIVES | 75.0 | 66.7 |
+| v1369 | Monthly analytics & growth report | FAILS_HR | 50.0 | 100.0 |
+| v1370 | DealFinder Chrome Extension | FAILS_HR | 24.5 | 206.7 |
+| v1371 | Sponsorship Pitch Template Builder | FAILS_HR | 10.8 | 186.7 |
+| v1372 | Brand Match Dashboard | SURVIVES | 99.0 | 103.3 |
+| v1373 | Automated Follow‑Up Scheduler | FAILS_POOL | 58.0 | 346.7 |
+| v1374 | Community Engagement | FAILS_HR | 37.5 | 66.7 |
+| v1375 | Membership Management | FAILS_HR | 40.0 | 50.0 |
+| v1376 | Community Growth | FAILS_HR | 41.7 | 40.0 |
+| v1377 | Analytics Reporting | FAILS_HR | 50.0 | 100.0 |
+| v1378 | Email List Hygiene | FAILS_HR | 45.0 | 56.7 |
+| v1379 | Custom Growth Dashboard | SURVIVES | 62.5 | 40.0 |
+| v1380 | Monthly Growth & Monetization Report | SURVIVES | 66.7 | 26.7 |
+| v1381 | One‑off Clip‑Level Performance Audit | SURVIVES | 60.0 | 83.3 |
+| v1382 | Quarterly Competitive Benchmark Pack | SURVIVES | 62.5 | 13.3 |
+| v1383 | Automated Referral Source Tracker | SURVIVES | 60.0 | 56.7 |
+| v1384 | Retention Funnel Optimization Consultation | SURVIVES | 60.0 | 16.7 |
+| v1385 | Script & Show Notes | FAILS_HR | 30.0 | 33.3 |
+| v1386 | Research & Fact‑Checking | FAILS_HR | 25.0 | 50.0 |
+| v1387 | Editing & Proofreading | FAILS_HR | 41.7 | 40.0 |
+| v1388 | Audience Engagement Scripts | FAILS_HR | 31.4 | 46.7 |
+| v1389 | AutoCaption AI | FAILS_HR | 12.5 | 400.0 |
+| v1390 | One‑Click Translate | FAILS_HR | 13.3 | 250.0 |
+| v1391 | Dubbify Lite | FAILS_HR | 48.0 | 43.3 |
+| v1392 | Caption‑Translate Bundle | FAILS_HR | 37.5 | 33.3 |
+| v1393 | Lead‑Gen Email Outreach | FAILS_HR | 31.2 | 40.0 |
+| v1394 | Paid Webinar Promotion | FAILS_HR | 33.3 | 50.0 |
+| v1395 | Client‑Acquisition Funnel Setup | FAILS_HR | 33.3 | 26.7 |
+| v1396 | Paid Consulting Pitch Deck | FAILS_HR | 36.0 | 56.7 |
+| v1397 | Monthly Client Outreach Calendar | FAILS_HR | 31.4 | 46.7 |
+| v1398 | Highlight Reel Cut | FAILS_HR | 45.0 | 113.3 |
+| v1399 | Clip‑by‑Clip Cutting | SURVIVES | 120.0 | 166.7 |
+| v1400 | Weekly Clip Package | FAILS_HR | 22.5 | 56.7 |
+| v1401 | QuickCut Retainer | FAILS_HR | 37.5 | 66.7 |
+| v1402 | HighlightHub | FAILS_HR | 40.0 | 83.3 |
+| v1403 | StreamSync | FAILS_HR | 36.0 | 56.7 |
+| v1404 | ClipCraft | FAILS_HR | 33.3 | 50.0 |
+| v1405 | SocialSync | FAILS_HR | 35.0 | 73.3 |
+| v1406 | LiveLoop | FAILS_HR | 34.0 | 60.0 |
+| v1407 | Thumbnail Auto‑Creator | FAILS_HR | 15.0 | 666.7 |
+| v1408 | Title Optimizer | FAILS_HR | 20.0 | 1000.0 |
+| v1409 | Thumbnail Scheduler | FAILS_HR | 26.7 | 1250.0 |
+| v1410 | Thumbnail Analytics | FAILS_HR | 30.0 | 833.3 |
+| v1411 | Thumbnail Customization Kit | FAILS_HR | 18.0 | 556.7 |
+| v1412 | Clip‑to‑Shorts Service | FAILS_HR | 20.8 | 40.0 |
+| v1413 | Highlight Reel Monthly Package | FAILS_HR | 22.5 | 56.7 |
+| v1414 | Thumbnail & Title Optimization | FAILS_HR | 24.0 | 83.3 |
+| v1415 | Cross‑Platform Captioning Service | FAILS_HR | 15.0 | 113.3 |
+| v1416 | Weekly Content Calendar & Scheduling | FAILS_HR | 37.5 | 66.7 |
+| v1417 | Audio‑Only Podcast Extraction | FAILS_HR | 20.0 | 50.0 |
+| v1418 | Quick Clip Edit | SURVIVES | 150.0 | 33.3 |
+| v1419 | Full Episode Edit | SURVIVES | 160.0 | 13.3 |
+| v1420 | Live Stream Recap | FAILS_HR | 30.0 | 113.3 |
+| v1421 | Audio Clean‑Up | FAILS_HR | 2.2 | 2273.3 |
+| v1422 | Social Clip Bundle | FAILS_HR | 45.0 | 56.7 |
+| v1423 | Deal Finder Retainer | SURVIVES | 66.7 | 13.3 |
+| v1424 | Contract & Payment Management | SURVIVES | 62.5 | 40.0 |
+| v1425 | Live‑Stream Ad Integration Coaching | FAILS_HR | 50.0 | 66.7 |
+| v1426 | Sponsor Outreach Automation Setup | INSUFFICIENT |  |  |
+| v1427 | Auto-Moderation Bot | FAILS_HR | 7.5 | 666.7 |
+| v1428 | Subscriber Analytics Dashboard | FAILS_HR | 25.0 | 400.0 |
+| v1429 | Automated Giveaway Scheduler | FAILS_HR | 10.0 | 1000.0 |
+| v1430 | Tiered Membership Manager | FAILS_HR | 7.5 | 333.3 |
+| v1431 | Live Stream Feedback Collector | FAILS_HR | 12.0 | 833.3 |
+| v1432 | Growth Dashboard & Weekly Report | FAILS_HR | 30.0 | 66.7 |
+| v1433 | Content Performance Audit + Action Plan | FAILS_HR | 25.0 | 33.3 |
+| v1434 | Sponsor Pitch Pack Creation | FAILS_HR | 31.2 | 40.0 |
+| v1435 | Monthly Clip Highlights & Social Clips Package | FAILS_HR | 18.0 | 56.7 |
+| v1436 | Subscriber Churn Alert & Retention Tips | FAILS_HR | 30.0 | 83.3 |
+| v1437 | Live‑Chat Sentiment & Moderation Report | FAILS_HR | 33.3 | 100.0 |
+| v1438 | Script Draft | FAILS_HR | 30.0 | 166.7 |
+| v1439 | Clip Show Notes | SURVIVES | 150.0 | 66.7 |
+| v1440 | Research Pack | FAILS_HR | 16.7 | 400.0 |
+| v1441 | Script Polish | FAILS_HR | 40.0 | 250.0 |
+| v1442 | Clip Captioning | FAILS_HR | 36.0 | 556.7 |
+| v1443 | Clip SEO Pack | FAILS_HR | 48.0 | 280.0 |
+| v1444 | Live Caption Service | FAILS_HR | 15.0 | 83.3 |
+| v1445 | Subtitle Translation Pack | FAILS_HR | 20.8 | 40.0 |
+| v1446 | Dubbing Voice‑over Service | UNIT |  |  |
+| v1447 | Multilingual Highlight Reel Package | FAILS_HR | 50.0 | 13.3 |
+| v1448 | On‑Demand Caption Emergency Service | SURVIVES | 100.0 | 50.0 |
+| v1449 | LeadGen Dashboard | FAILS_HR | 24.5 | 206.7 |
+| v1450 | Clip‑Monetizer Scheduler | FAILS_HR | 26.3 | 126.7 |
+| v1451 | Merch‑Idea Generator | FAILS_HR | 39.0 | 256.7 |
+| v1452 | Sponsor‑Fit Analyzer | INSUFFICIENT |  |  |
+| v1453 | Chat‑Engagement Bot | FAILS_HR | 29.0 | 346.7 |
+| v1454 | Analytics‑to‑Pitch Converter | INSUFFICIENT |  |  |
+| v1455 | Clip‑Batch Editing | FAILS_HR | 37.5 | 66.7 |
+| v1456 | Weekly Highlight Reel | FAILS_HR | 40.0 | 83.3 |
+| v1457 | Full‑Course Edit | INSUFFICIENT |  |  |
+| v1458 | Module‑Clip Cut | INSUFFICIENT |  |  |
+| v1459 | Caption & Subtitles Package | INSUFFICIENT |  |  |
+| v1460 | Brand‑Consistent Intro/Outro Pack | INSUFFICIENT |  |  |
+| v1461 | Bulk Lesson Trim Service | INSUFFICIENT |  |  |
+| v1462 | Thumbnail Design Retainer | FAILS_HR | 37.5 | 66.7 |
+| v1463 | Title & Caption Writing | FAILS_HR | 40.0 | 83.3 |
+| v1464 | Thumbnail Audit & Optimization | FAILS_HR | 50.0 | 100.0 |
+| v1465 | ClipSplitter | FAILS_HR | 26.7 | 500.0 |
+| v1466 | RepostScheduler | FAILS_HR | 40.0 | 833.3 |
+| v1467 | ThumbnailGen | FAILS_HR | 50.0 | 1000.0 |
+| v1468 | AudioEnhance | FAILS_HR | 45.0 | 556.7 |
+| v1469 | CaptionTranslate | FAILS_HR | 41.7 | 400.0 |
+| v1470 | Episode Promotion Pack | FAILS_HR | 30.0 | 66.7 |
+| v1471 | Sponsorship Pitch Script per Video | SURVIVES | 240.0 | 23.3 |
+| v1472 | Brand Integration Clip Editing | INSUFFICIENT |  |  |
+| v1473 | Deal Outreach Email Sequence | FAILS_HR | 43.8 | 30.0 |
+| v1474 | Sponsorship Contract Review per Deal | SURVIVES | 400.0 | 26.7 |
+| v1475 | Performance Dashboard Setup | SURVIVES | 62.5 | 40.0 |
+| v1476 | Mini‑Ad Spot Production per Video | INSUFFICIENT |  |  |
+| v1477 | Community Moderator & Engagement | FAILS_HR | 29.2 | 30.0 |
+| v1478 | Monthly Content Calendar & Posting | FAILS_HR | 42.0 | 26.7 |
+| v1479 | Live Q&A Technical Support | FAILS_HR | 41.7 | 40.0 |
+| v1480 | Member Feedback & Survey Management | FAILS_HR | 40.0 | 36.7 |
+| v1481 | Community Content Repurposing | FAILS_HR | 44.4 | 26.7 |
+| v1482 | Revenue Attribution Tool | FAILS_HR | 39.5 | 126.7 |
+| v1483 | Social Sentiment Analyzer | FAILS_HR | 39.3 | 170.0 |
+| v1484 | Automated Reporting Bot | FAILS_HR | 38.0 | 526.7 |
+| v1485 | Research & Outline Package | SURVIVES | 62.5 | 20.0 |
+| v1486 | Show‑Notes & Resource List Service | FAILS_HR | 50.0 | 33.3 |
+| v1487 | Script Editing & Polishing | INSUFFICIENT |  |  |
+| v1488 | Audience‑Tailored Script Rewrite | INSUFFICIENT |  |  |
+| v1489 | English Captioning per video | FAILS_HR | 5.0 | 1000.0 |
+| v1490 | Spanish Translation of Captions | SURVIVES | 2500.0 | 3.3 |
+| v1491 | Dubbing Voiceover (English to Spanish) | SURVIVES | 72.0 | 30.0 |
+| v1492 | Micro‑clip Captioning (≤2 min clips) | FAILS_HR | 24.0 | 416.7 |
+| v1493 | Closed‑Caption Quality Audit | SURVIVES | 400.0 | 16.7 |
+| v1494 | Batch Subtitle Translation (10‑video package) | FAILS_HR | 41.7 | 20.0 |
+| v1495 | Lead List Builder | FAILS_HR | 31.2 | 40.0 |
+| v1496 | Social Media Lead Magnet | FAILS_HR | 33.3 | 50.0 |
+| v1497 | Client Retargeting Ads | FAILS_HR | 29.2 | 30.0 |
+| v1498 | Webinar Funnel Builder | FAILS_HR | 26.7 | 26.7 |
+| v1499 | ReelReactor | FAILS_HR | 35.7 | 400.0 |
+| v1500 | ShortsSync | FAILS_HR | 36.7 | 456.7 |
+| v1501 | BatchTrim Studio | SURVIVES | 239.0 | 10.0 |
+| v1502 | ClipOptimizer | FAILS_HR | 40.0 | 833.3 |
+| v1503 | FastCut Shorts Service | FAILS_HR | 29.2 | 30.0 |
+| v1504 | Caption & Hook Boost | FAILS_HR | 30.0 | 83.3 |
+| v1505 | Audio Clean‑Up & Music Sync | FAILS_HR | 31.2 | 40.0 |
+| v1506 | Batch Export & Scheduling | FAILS_HR | 33.3 | 100.0 |
+| v1507 | Performance Analytics Report | FAILS_HR | 40.0 | 126.7 |
+| v1508 | Thumbnail Revisions | SURVIVES | 490.0 | 206.7 |
+| v1509 | Multi‑Platform Clip Pack | FAILS_HR | 31.2 | 40.0 |
+| v1510 | Weekly Trend‑Ready Edits | FAILS_HR | 50.0 | 16.7 |
+| v1511 | Caption & Thumbnail Service | FAILS_HR | 30.0 | 83.3 |
+| v1512 | Auto‑Sync Podcast | FAILS_HR | 15.0 | 666.7 |
+| v1513 | Caption Auto‑Gen | FAILS_HR | 20.0 | 1000.0 |
+| v1514 | Thumbnail Builder | FAILS_HR | 15.0 | 833.3 |
+| v1515 | Pitch Pack | FAILS_HR | 40.0 | 50.0 |
+| v1516 | Rate Negotiator | FAILS_HR | 45.0 | 56.7 |
+| v1517 | Deal Dashboard | FAILS_HR | 46.7 | 73.3 |
+| v1518 | Comment Concierge | FAILS_HR | 15.0 | 83.3 |
+| v1519 | Trend‑Ready Clip Remix | FAILS_HR | 50.0 | 66.7 |
+| v1520 | Growth Dashboard Setup | FAILS_HR | 30.0 | 83.3 |
+| v1521 | Weekly Performance Report + Insights | FAILS_HR | 41.7 | 40.0 |
+| v1522 | Ad‑Revenue Forecast Model | FAILS_HR | 42.9 | 33.3 |
+| v1523 | ScriptGen AI | FAILS_HR | 29.0 | 346.7 |
+| v1524 | ResearchBot | FAILS_HR | 38.0 | 526.7 |
+| v1525 | ShowNotes Pro | FAILS_HR | 32.0 | 416.7 |
+| v1526 | TemplateHub | FAILS_HR | 50.0 | 666.7 |
+| v1527 | TrendPulse | SURVIVES | 60.0 | 833.3 |
+| v1528 | Multilingual Translation Pack | FAILS_HR | 12.5 | 40.0 |
+| v1529 | Full‑Package Caption‑Translate‑Dub Retainer | FAILS_HR | 13.3 | 16.7 |
+| v1530 | Client Prospect List per 10 Leads | FAILS_HR | 30.0 | 66.7 |
+| v1531 | One‑Video Pitch Package | SURVIVES | 74.5 | 70.0 |
+| v1532 | Weekly Brand Outreach Script | FAILS_HR | 50.0 | 200.0 |
+| v1533 | Clip‑to‑Ad Conversion | SURVIVES | 133.3 | 26.7 |
+| v1534 | Analytics Dashboard for Pitch Success | FAILS_HR | 30.0 | 333.3 |
+| v1535 | Clip‑Cut Retainer | FAILS_HR | 37.5 | 66.7 |
+| v1536 | Live‑Stream Clip Service | FAILS_HR | 31.4 | 46.7 |
+| v1537 | Corporate Training Clips | FAILS_HR | 31.2 | 40.0 |
+| v1538 | Auto-Tagger | FAILS_HR | 29.0 | 346.7 |
+| v1539 | ScriptSync | FAILS_HR | 38.0 | 526.7 |
+| v1540 | ColorMatch | FAILS_HR | 26.0 | 256.7 |
+| v1541 | ClipCutter | FAILS_HR | 30.0 | 416.7 |
+| v1542 | StoryBoarder | FAILS_HR | 34.0 | 296.7 |
+| v1543 | Weekly Thumbnail & Title Pack | FAILS_HR | 29.2 | 30.0 |
+| v1544 | Brand‑Consistent Thumbnail System | FAILS_HR | 33.3 | 20.0 |
+| v1545 | Turnaround‑Guaranteed 24h Thumbnail Service | FAILS_HR | 30.0 | 56.7 |
+| v1546 | Clip‑to‑Post | SURVIVES | 300.0 | 66.7 |
+| v1547 | Story‑Series | SURVIVES | 120.0 | 113.3 |
+| v1548 | TikTok‑Boost | SURVIVES | 125.0 | 200.0 |
+| v1549 | LinkedIn‑Snippet | SURVIVES | 175.0 | 96.7 |
+| v1550 | Reel‑Remix | SURVIVES | 280.0 | 73.3 |
+| v1551 | Podcast Episode Edit | FAILS_HR | 30.0 | 83.3 |
+| v1552 | Episode Transcription | FAILS_HR | 26.7 | 126.7 |
+| v1553 | Episode Intro/Outro Production | FAILS_HR | 30.0 | 66.7 |
+| v1554 | Episode SEO & Metadata | FAILS_HR | 45.0 | 113.3 |
+| v1555 | Episode Promotion Strategy | FAILS_HR | 33.3 | 50.0 |
+| v1556 | DealTracker CRM | FAILS_HR | 24.5 | 206.7 |
+| v1557 | PitchTemplate Generator | FAILS_HR | 26.0 | 770.0 |
+| v1558 | BrandMatch AI | FAILS_HR | 0.5 | 20000.0 |
+| v1559 | ContractAutoFill | FAILS_HR | 15.0 | 666.7 |
+| v1560 | Sponsorship KPI Dashboard | SURVIVES | 66.0 | 103.3 |
+| v1561 | DealClose Reminder Bot | SURVIVES | 63.3 | 526.7 |
+| v1562 | Member Onboarding Flow | FAILS_HR | 33.3 | 50.0 |
+| v1563 | Member Feedback Loop | FAILS_HR | 31.4 | 46.7 |
+| v1564 | TikTok Trend Clip | SURVIVES | 180.0 | 113.3 |
+| v1565 | Instagram Reel KPI | FAILS_HR | 23.3 | 286.7 |
+| v1566 | Podcast Listener Growth | FAILS_HR | 25.0 | 200.0 |
+| v1567 | Live Stream Analytics | FAILS_HR | 40.0 | 250.0 |
+| v1568 | Creator Ad ROI | FAILS_HR | 48.0 | 83.3 |
+| v1569 | Show‑Notes & SEO Optimization | FAILS_HR | 30.0 | 56.7 |
+| v1570 | QuickDub Translator | FAILS_HR | 2.0 | 1000.0 |
+| v1571 | MultiLang Subtitle Sync | UNIT |  |  |
+| v1572 | Caption Quality Dashboard | SURVIVES | 350.0 | 30.0 |
+| v1573 | Event Lead Finder | FAILS_HR | 29.2 | 30.0 |
+| v1574 | Affiliate Lead Builder | FAILS_HR | 33.3 | 50.0 |
+| v1575 | CRM Lead Nurturer | FAILS_HR | 31.1 | 36.7 |
+| v1576 | Paid Ad Lead Scout | FAILS_HR | 28.6 | 26.7 |
