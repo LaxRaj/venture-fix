@@ -90,7 +90,10 @@ def _tag_v2(args) -> None:
     _write(path, merged)
     from collections import Counter
     print(f"tagged {len(tags)} candidates (v2 bank, 2 shuffled runs each): {dict(Counter(t['status'] for t in tags.values()))}")
-    print("note: Jev removes nothing from the shortlist until `tagcheck --run` has validated a question.")
+    qc = os.path.join(o, "tagcheck.json")
+    ok_q = sorted(TC.trusted(_read(qc))) if os.path.exists(qc) else []
+    print("note: validated questions that may demote the shortlist: " + (", ".join(q for q in ok_q if q in R.DEMOTING) or "none")
+          if ok_q else "note: Jev removes nothing from the shortlist until `tagcheck --run` has validated a question.")
 
 
 def cmd_tagcheck(args) -> None:
