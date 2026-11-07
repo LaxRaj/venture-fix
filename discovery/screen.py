@@ -23,8 +23,12 @@ def screen(c: dict, target: float = TARGET, flag: float = PRICE_FLAG) -> Dict[st
     unit, price, hrs, pool = c.get("price_unit"), c.get("price_usd"), c.get("hours_per_account_month"), c.get("pool_count")
     if unit == "contingency":
         return {"verdict": "CONTINGENCY", "why": "paid as a share of recovery; flat-price test cannot score it"}
+    derived = False
     if unit in ("project", "per_unit"):
-        return {"verdict": "UNIT", "why": f"priced per {unit}; needs monthly accounts-per-month to convert"}
+        units = c.get("units_per_account_month")
+        if units is None or price is None:
+            return {"verdict": "UNIT", "why": f"priced per {unit}; needs a typical monthly volume to convert"}
+        price, unit, derived = price * units, "month", True   # monthly price = price x a GUESSED volume; labelled everywhere
     if unit != "month" or price is None or hrs is None or pool is None:
         missing = [n for n, v in (("price", price), ("hours", hrs), ("pool", pool)) if v is None]
         return {"verdict": "INSUFFICIENT", "why": "missing " + ", ".join(missing or ["monthly price unit"])}
@@ -33,7 +37,9 @@ def screen(c: dict, target: float = TARGET, flag: float = PRICE_FLAG) -> Dict[st
     accounts = math.ceil(target / price)   # whole customers: half a customer does not exist
     cap = DELIV_HOURS / hrs
     row: Dict[str, object] = {"per_hr": round(per_hr, 1), "accounts": accounts, "cap": round(cap, 1),
-                              "price_flag": price > flag}
+                              "price_flag": price > flag, "derived": derived}
+    if derived:
+        row["monthly_price"] = round(price, 2)
     for tag, conv in (("base", CONV_BASE), ("stress", CONV_STRESS)):
         contacts = accounts / conv
         row[f"contacts_{tag}"] = round(contacts)

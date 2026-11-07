@@ -243,6 +243,8 @@ class StubGroq:
         return out
 
     def complete(self, prompt: str, max_out: int = 600) -> str:
+        if "purchase in a single month" in prompt:
+            return json.dumps({"units_per_month": 6, "unit_name": "unit", "basis": "STUB volume guess"})
         m = re.search(r"\[(\d+)\] [^|]*\| ([^(]*?\$(\d+)[^(]*?)\s*\(", prompt)
         if not m:
             return '{"price_usd": null, "price_unit": null, "source_index": null, "quote": null}'
