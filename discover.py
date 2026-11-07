@@ -48,7 +48,7 @@ def cmd_models(args) -> None:
 
 def cmd_harvest(args) -> None:
     o = out_dir(args.provider)
-    queries = seeds.build_queries()
+    queries = seeds.all_queries()
     cache = os.path.join(o, "cache")
     if args.provider == "live" and not args.sequential and not args.limit:
         lanes = make_lanes()
@@ -154,10 +154,19 @@ def cmd_screen(args) -> None:
     print(dict(Counter(r["screen"]["verdict"] for r in rows)))
 
 
+def _merged_rows(o: str):
+    """The current candidate list with every cached result applied: the fresh screen, then pools, price search,
+    browser grounding and volumes.  Never start from grounded.json: it predates any later dedupe, so candidates
+    added since would silently vanish from every later step."""
+    rows = _read(os.path.join(o, "screened.json"))
+    dirs = [os.path.join(o, d) for d in ("cache_ground", "cache_ground_pools", "cache_ground_search")]
+    return VOL.apply_cached(G.merge_cached(rows, *dirs), os.path.join(o, "cache_volume"))
+
+
 def cmd_volume(args) -> None:
     o = out_dir(args.provider)
     gp = os.path.join(o, "grounded.json")
-    rows = _read(gp if os.path.exists(gp) else os.path.join(o, "screened.json"))
+    rows = _merged_rows(o)
     cache = os.path.join(o, "cache_volume")
     todo = [r for r in VOL.wanted(rows)]
     if args.limit:                                      # smoke test: only the first N uncached
@@ -175,10 +184,9 @@ def cmd_volume(args) -> None:
 
 def cmd_ground(args) -> None:
     o = out_dir(args.provider)
-    # Start from the merged rows when they exist: a candidate can become a survivor only after its Census pool is
-    # added, and the screen file from before that step would miss it.
-    gp = os.path.join(o, "grounded.json")
-    rows = _read(gp if os.path.exists(gp) else os.path.join(o, "screened.json"))
+    # Rebuild from the fresh screen plus every cache (see _merged_rows): a candidate can become a survivor only after
+    # its Census pool is added, and grounded.json from an earlier run would miss anything added by a later dedupe.
+    rows = _merged_rows(o)
     groq = make_groq(args.provider)
     dirs = [os.path.join(o, "cache_ground")]
     if args.pools_only:

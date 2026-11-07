@@ -53,7 +53,7 @@ def _jev_summary(rows: List[dict], tags2: dict, quality, trusted: set) -> Dict[s
 
 
 def collect(out_dir: str, stub: bool) -> Dict[str, object]:
-    queries = seeds.build_queries()
+    queries = seeds.all_queries()
     cache = os.path.join(out_dir, "cache")
     done = sum(1 for q in queries if os.path.exists(os.path.join(cache, q["id"] + ".json")))
     raw_meta = _read(os.path.join(out_dir, "raw.json"))
@@ -90,7 +90,7 @@ def collect(out_dir: str, stub: bool) -> Dict[str, object]:
     saturation = ran
     tag_ok = sum(1 for t in tags.values() if t.get("status") == "ok")
     stages = [
-        {"name": "Seed matrix", "state": "done", "detail": f"{len(seeds.SECTORS)} sectors x {len(seeds.PAINS)} pains = {len(queries)} queries"},
+        {"name": "Seed matrix", "state": "done", "detail": f"{len(seeds.SECTORS)} sectors x {len(seeds.PAINS)} pains + {len(seeds.CREATOR_BUYERS)} creator buyers x {len(seeds.CREATOR_JOBS)} jobs = {len(queries)} queries"},
         {"name": "Generate", "state": "done" if done == len(queries) else ("partial" if done else "todo"),
          "detail": f"{done} of {len(queries)} queries cached"},
         {"name": "Dedupe", "state": "done" if unique_meta else ("preview" if preview else "todo"),

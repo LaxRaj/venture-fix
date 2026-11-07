@@ -54,3 +54,51 @@ def build_queries(limit: int | None = None) -> List[Dict[str, str]]:
             )
             out.append({"id": query_id(text), "sector": s, "pain": p, "model": model, "text": text})
     return out[:limit] if limit else out
+
+
+# ---------------------------------------------------------------------------
+# Creator seed set.
+#
+# The sector x pain matrix above crosses every sector with every pain, so a creator sector received pains such as
+# "claims, denials or invoice disputes" and produced offers that are not creator ventures.  This set is built for
+# the creator economy instead: who the buyer is, and the jobs creators actually pay editors and agencies for.
+# ---------------------------------------------------------------------------
+
+CREATOR_BUYERS = (
+    "YouTubers with 10K+ subscribers", "podcast hosts", "newsletter writers and Substack authors",
+    "Twitch and live-stream creators", "course creators and coaches",
+    "short-form creators on TikTok, Reels and Shorts", "membership and community creators",
+)
+
+CREATOR_JOBS = (
+    "cutting long videos into short clips", "editing long-form video", "designing thumbnails and titles",
+    "repurposing one video into posts for other platforms", "producing and editing podcast episodes",
+    "finding and closing sponsorship and brand deals", "managing the community and membership",
+    "reporting on channel growth and analytics", "writing scripts, research and show notes",
+    "captioning, translating and dubbing", "finding clients and leads for the creator's own services",
+)
+
+# Creator work is mostly sold per video or per clip, so that model appears alongside retainers and tools.
+CREATOR_MODELS = ("monthly retainer", "per-video or per-clip fee", "monthly retainer", "small software tool")
+
+
+def build_creator_queries(limit: int | None = None) -> List[Dict[str, str]]:
+    """Deterministic creator queries: every buyer type x every job.  sector holds the buyer, pain holds the job."""
+    out: List[Dict[str, str]] = []
+    n = 0
+    for b in CREATOR_BUYERS:
+        for j in CREATOR_JOBS:
+            model = CREATOR_MODELS[n % len(CREATOR_MODELS)]
+            n += 1
+            text = (
+                f"{b}: creators who pay a freelancer, editor or small agency for {j}. "
+                f"Find concrete offers a solo operator could sell as a {model}. "
+                f"Include what editors and agencies charge today."
+            )
+            out.append({"id": query_id(text), "sector": b, "pain": j, "model": model, "text": text})
+    return out[:limit] if limit else out
+
+
+def all_queries() -> List[Dict[str, str]]:
+    """The core sector matrix followed by the creator set; the core queries keep their order and ids."""
+    return build_queries() + build_creator_queries()
