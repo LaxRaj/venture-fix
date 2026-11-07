@@ -1,0 +1,484 @@
+{
+ "note": "Hand labels by the assistant from the cached text of each candidate. A question is omitted where the text does not clearly settle it. These are a reviewer's judgment, not ground truth: read and correct them before trusting any agreement figure.",
+ "selection": "tagcheck.select_gold(rows, n=40, seed=7) over verified.json at the time of labelling",
+ "labels": {
+  "e7314946acd79cd6": {
+   "offer": "Appointment Coordination Service",
+   "buyer": "Real estate brokerage owners",
+   "labels": {
+    "price_kind": "vendor",
+    "audience": "escape",
+    "regulated_work": "plain",
+    "delivery_model": "service",
+    "access_channel": "direct"
+   }
+  },
+  "26870b0490f6a27d": {
+   "offer": "Vet Pharmacy Purchase Review",
+   "buyer": "Veterinary clinic managers",
+   "labels": {
+    "price_kind": "escape",
+    "audience": "escape",
+    "regulated_work": "plain",
+    "delivery_model": "service",
+    "access_channel": "community"
+   }
+  },
+  "0a33571a831a175e": {
+   "offer": "Prescription Refill Coordination",
+   "buyer": "Independent pharmacy owners",
+   "labels": {
+    "price_kind": "vendor",
+    "audience": "small",
+    "regulated_work": "health",
+    "delivery_model": "service",
+    "access_channel": "community"
+   }
+  },
+  "af4df84e76f13bde": {
+   "offer": "Dispatch Optimization Audit",
+   "buyer": "Roofing & HVAC contractors",
+   "labels": {
+    "price_kind": "vendor",
+    "audience": "escape",
+    "regulated_work": "plain",
+    "delivery_model": "service",
+    "access_channel": "community"
+   }
+  },
+  "be2b210d7593543e": {
+   "offer": "TaxReady Reports",
+   "buyer": "Boutique brokerages preparing quarterly tax filings",
+   "labels": {
+    "price_kind": "vendor",
+    "audience": "small",
+    "regulated_work": "finance"
+   }
+  },
+  "55530a9ab4c0a105": {
+   "offer": "Lead Follow‑Up Automation",
+   "buyer": "Boutique brokerages with 5‑15 agents",
+   "labels": {
+    "price_kind": "vendor",
+    "audience": "escape"
+   }
+  },
+  "533664942a2e600a": {
+   "offer": "Bid Cost Estimator Add‑on",
+   "buyer": "roofing & HVAC small firms",
+   "labels": {
+    "price_kind": "vendor",
+    "audience": "escape",
+    "regulated_work": "plain"
+   }
+  },
+  "e2e529a47c2043c5": {
+   "offer": "Load Tender Response Automator",
+   "buyer": "regional trucking companies",
+   "labels": {
+    "price_kind": "escape",
+    "audience": "escape",
+    "regulated_work": "plain",
+    "delivery_model": "tool",
+    "access_channel": "platform"
+   }
+  },
+  "fff572901daaa0a2": {
+   "offer": "Supplier Invoice Matching Service",
+   "buyer": "importers",
+   "labels": {
+    "price_kind": "vendor",
+    "audience": "escape",
+    "delivery_model": "service",
+    "access_channel": "direct"
+   }
+  },
+  "32811ce7120a9724": {
+   "offer": "MLS‑CRM Sync Automation",
+   "buyer": "Brokerage IT coordinators",
+   "labels": {
+    "price_kind": "vendor",
+    "audience": "escape",
+    "delivery_model": "service",
+    "access_channel": "community"
+   }
+  },
+  "b2ce9088a5ce635b": {
+   "offer": "Medical Billing Code Optimization",
+   "buyer": "Small medical clinic administrators",
+   "labels": {
+    "price_kind": "vendor",
+    "audience": "escape",
+    "regulated_work": "health",
+    "delivery_model": "service",
+    "access_channel": "community"
+   }
+  },
+  "9c004ba28fd57431": {
+   "offer": "Invoice Dispute Auto‑Matcher",
+   "buyer": "Freight brokers",
+   "labels": {
+    "price_kind": "vendor",
+    "audience": "small",
+    "regulated_work": "plain",
+    "delivery_model": "tool"
+   }
+  },
+  "6fe8152b097c764c": {
+   "offer": "Qualified Lead Pack",
+   "buyer": "local construction contractors",
+   "labels": {
+    "price_kind": "ads",
+    "audience": "escape",
+    "delivery_model": "leads",
+    "access_channel": "community"
+   }
+  },
+  "5c05e6c0f9000f39": {
+   "offer": "Google Ads Campaign Management",
+   "buyer": "sub‑contractors (plumbing, electrical)",
+   "labels": {
+    "price_kind": "vendor",
+    "audience": "escape",
+    "regulated_work": "plain",
+    "delivery_model": "service",
+    "access_channel": "platform"
+   }
+  },
+  "0614b5d2212f794c": {
+   "offer": "Online Reputation Monitoring for Import Brands",
+   "buyer": "customs brokers representing consumer brands",
+   "labels": {
+    "price_kind": "vendor",
+    "audience": "escape",
+    "regulated_work": "plain",
+    "access_channel": "direct"
+   }
+  },
+  "76d96029419b4b7c": {
+   "offer": "Environmental Reporting Service",
+   "buyer": "Roofing & HVAC contractors",
+   "labels": {
+    "price_kind": "vendor",
+    "audience": "escape",
+    "delivery_model": "service"
+   }
+  },
+  "8d640b6f5c42ad00": {
+   "offer": "Patient Education Email Series",
+   "buyer": "Physical therapy & chiropractic clinics",
+   "labels": {
+    "price_kind": "vendor",
+    "audience": "escape",
+    "regulated_work": "health",
+    "delivery_model": "service",
+    "access_channel": "community"
+   }
+  },
+  "97f0f1dd9a7048d4": {
+   "offer": "EMR Data Sync Service",
+   "buyer": "Veterinary clinic owners",
+   "labels": {
+    "price_kind": "vendor",
+    "audience": "small",
+    "regulated_work": "health",
+    "delivery_model": "service",
+    "access_channel": "community"
+   }
+  },
+  "2324b92e2a499676": {
+   "offer": "Monthly Blog & SEO Refresh",
+   "buyer": "Small medical clinics",
+   "labels": {
+    "price_kind": "escape",
+    "audience": "escape",
+    "delivery_model": "service",
+    "access_channel": "community"
+   }
+  },
+  "7fbe5ffec0a7c6bd": {
+   "offer": "ChiroCash Flow Dashboard",
+   "buyer": "Chiropractic clinic managers",
+   "labels": {
+    "price_kind": "escape",
+    "audience": "escape",
+    "regulated_work": "plain",
+    "delivery_model": "tool",
+    "access_channel": "direct"
+   }
+  },
+  "1f73aad0bc8e423a": {
+   "offer": "Mileage Reimbursement Audit",
+   "buyer": "small logistics firms",
+   "labels": {
+    "regulated_work": "finance",
+    "delivery_model": "service"
+   }
+  },
+  "417793073d8df83d": {
+   "offer": "Regulatory Reporting Scheduler",
+   "buyer": "Freight brokers",
+   "labels": {
+    "delivery_model": "tool",
+    "access_channel": "community"
+   }
+  },
+  "7c33a5b25ae09d87": {
+   "offer": "Urgent Care Dispatch Coordination",
+   "buyer": "Walk‑in urgent care centers",
+   "labels": {
+    "regulated_work": "health",
+    "delivery_model": "service",
+    "access_channel": "community"
+   }
+  },
+  "028396b62f5b3b0b": {
+   "offer": "CaseCost Dashboard",
+   "buyer": "mid‑size boutique law firms",
+   "labels": {
+    "delivery_model": "tool",
+    "access_channel": "community"
+   }
+  },
+  "539df365e4b9adc3": {
+   "offer": "Fair Housing Audit",
+   "buyer": "Property management firms",
+   "labels": {
+    "delivery_model": "service",
+    "access_channel": "community"
+   }
+  },
+  "9caabff771e1157f": {
+   "offer": "Monthly Newsletter & LinkedIn Carousel",
+   "buyer": "customs brokerage firms",
+   "labels": {
+    "delivery_model": "service",
+    "access_channel": "community"
+   }
+  },
+  "46fb81854ee54a32": {
+   "offer": "Tariff Classification Data Enrichment",
+   "buyer": "customs brokers",
+   "labels": {
+    "delivery_model": "service",
+    "access_channel": "community"
+   }
+  },
+  "39a32041136cf5a6": {
+   "offer": "Client intake migration",
+   "buyer": "small law firms",
+   "labels": {
+    "delivery_model": "service",
+    "access_channel": "community"
+   }
+  },
+  "6e51b76eaec515ff": {
+   "offer": "Webinar‑Series Production on Contingent Fee",
+   "buyer": "Family‑law solo practices",
+   "labels": {
+    "delivery_model": "service",
+    "access_channel": "community"
+   }
+  },
+  "95fa5a482d092d8e": {
+   "offer": "Invoice Dispute Auto‑Generator",
+   "buyer": "solo litigators billing insurers",
+   "labels": {
+    "delivery_model": "tool"
+   }
+  },
+  "6528a49dc7ebed24": {
+   "offer": "Bond Underpayment Recovery",
+   "buyer": "customs brokers",
+   "labels": {
+    "delivery_model": "service"
+   }
+  },
+  "df0de9703a0791b1": {
+   "offer": "Agent Performance Data Hygiene",
+   "buyer": "Brokerage managing partners",
+   "labels": {
+    "regulated_work": "plain",
+    "delivery_model": "service",
+    "access_channel": "direct"
+   }
+  },
+  "097642da2eddd830": {
+   "offer": "Clinic Contract Automator",
+   "buyer": "veterinary clinic administrators",
+   "labels": {
+    "regulated_work": "licence",
+    "delivery_model": "tool",
+    "access_channel": "community"
+   }
+  },
+  "5efe7c1953940d99": {
+   "offer": "Video Snippet Repurposing",
+   "buyer": "importer consultants",
+   "labels": {
+    "regulated_work": "plain",
+    "delivery_model": "service",
+    "access_channel": "direct"
+   }
+  },
+  "60d98e9463b3d128": {
+   "offer": "Tariff Classification Correction",
+   "buyer": "importers of industrial equipment",
+   "labels": {
+    "delivery_model": "service"
+   }
+  },
+  "0b5003c8b13c79f3": {
+   "offer": "Denial Appeal Writing",
+   "buyer": "property managers handling vendor service denials",
+   "labels": {
+    "regulated_work": "licence",
+    "delivery_model": "service",
+    "access_channel": "community"
+   }
+  },
+  "91504d690512e5a4": {
+   "offer": "CRM Data Sync Service",
+   "buyer": "roofing contractors",
+   "labels": {
+    "delivery_model": "service",
+    "access_channel": "community"
+   }
+  },
+  "5ab8b528adfdf521": {
+   "offer": "Claims Coding Review",
+   "buyer": "Independent pharmacy owners",
+   "labels": {
+    "delivery_model": "service",
+    "access_channel": "community"
+   }
+  },
+  "26ac9c79975a30fb": {
+   "offer": "Carrier Settlement Negotiation",
+   "buyer": "small fleet owners",
+   "labels": {
+    "regulated_work": "licence",
+    "delivery_model": "service"
+   }
+  },
+  "91fea850e57c7e51": {
+   "offer": "Quarterly Duty Drawback Audit & Filing",
+   "buyer": "Importers of manufactured goods",
+   "labels": {
+    "delivery_model": "service",
+    "access_channel": "community"
+   }
+  }
+ },
+ "probes": [
+  {
+   "id": "probe0",
+   "source": "real quote seen earlier in this project (Medication Delivery Optimization)",
+   "quote": "The cost of an in-house delivery service is $6,566 per month.",
+   "labels": {
+    "price_kind": "internal",
+    "audience": "escape"
+   }
+  },
+  {
+   "id": "probe1",
+   "source": "real quote seen earlier (Facebook Lead Ads Manager)",
+   "quote": "Most veterinary clinics spend $4,000-$8,000/month on Facebook Ads, running alongside a larger Google Ads budget.",
+   "labels": {
+    "price_kind": "ads",
+    "audience": "small"
+   }
+  },
+  {
+   "id": "probe2",
+   "source": "written by the assistant",
+   "quote": "Enterprise plans for fleets of 500+ trucks start at $9,500 per month.",
+   "labels": {
+    "price_kind": "vendor",
+    "audience": "large"
+   }
+  },
+  {
+   "id": "probe3",
+   "source": "written by the assistant, modelled on a real platform-fee quote",
+   "quote": "Our enterprise platform is priced at $6,000 a month for Fortune 500 shippers.",
+   "labels": {
+    "price_kind": "vendor",
+    "audience": "large"
+   }
+  },
+  {
+   "id": "probe4",
+   "source": "written by the assistant",
+   "quote": "Hiring a full-time in-house bookkeeper costs about $4,200 a month in salary and benefits.",
+   "labels": {
+    "price_kind": "internal",
+    "audience": "escape"
+   }
+  },
+  {
+   "id": "probe5",
+   "source": "written by the assistant",
+   "quote": "Businesses typically budget $2,000 a month for paid search ads.",
+   "labels": {
+    "price_kind": "ads",
+    "audience": "escape"
+   }
+  },
+  {
+   "id": "probe6",
+   "source": "control, written by the assistant",
+   "quote": "Our local-business plan is $129 a month for single-location shops.",
+   "labels": {
+    "price_kind": "vendor",
+    "audience": "small"
+   }
+  },
+  {
+   "id": "probe7",
+   "source": "control, written by the assistant",
+   "quote": "Agency retainers for independent clinics run $900 a month.",
+   "labels": {
+    "price_kind": "vendor",
+    "audience": "small"
+   }
+  },
+  {
+   "id": "probe8",
+   "source": "written by the assistant",
+   "quote": "Enterprise-grade chargeback management for global retailers, with pricing from $12,000 per month.",
+   "labels": {
+    "price_kind": "vendor",
+    "audience": "large"
+   }
+  },
+  {
+   "id": "probe9",
+   "source": "real quote seen in this project, truncated (Dispatch Error Cost Recovery)",
+   "quote": "Some owner-operators with higher freight volumes or service fees may save $2,000 or more per month",
+   "labels": {
+    "price_kind": "savings",
+    "audience": "small"
+   }
+  },
+  {
+   "id": "probe10",
+   "source": "written by the assistant",
+   "quote": "Typical clients recover $3,500 a month in overpaid freight charges.",
+   "labels": {
+    "price_kind": "savings",
+    "audience": "escape"
+   }
+  },
+  {
+   "id": "probe11",
+   "source": "written by the assistant",
+   "quote": "Practices that switch usually save about $1,800 per month on supplies.",
+   "labels": {
+    "price_kind": "savings",
+    "audience": "small"
+   }
+  }
+ ],
+ "probe_note": "Probes exist because the sampled gold set has almost no examples of the classes that trigger removal (buyer's own cost, ad budget, large company). Real quotes are marked; the rest are synthetic."
+}

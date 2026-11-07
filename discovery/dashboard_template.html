@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Venture Discovery</title>
+<style>
+:root{--bg:#f6f5f1;--card:#fff;--ink:#1c1b19;--mute:#6b675f;--line:#dedad0;--accent:#1f5f8b;--ok:#17724a;--okbg:#e2f3ea;--bad:#a8372c;--badbg:#f8e6e3;--warn:#8a5a00;--warnbg:#fbf0d4;--neu:#4b5563;--neubg:#e8e8ec;--chart:#1f5f8b}
+@media (prefers-color-scheme:dark){:root{--bg:#141413;--card:#1d1d1b;--ink:#ecebe6;--mute:#a09c92;--line:#35332e;--accent:#7bb7e0;--ok:#6fd1a0;--okbg:#18372a;--bad:#f09a8f;--badbg:#401f1b;--warn:#f0c870;--warnbg:#3b2f10;--neu:#c3c6d0;--neubg:#2a2b31;--chart:#7bb7e0}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:1180px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:8px 0 2px}h2{font-size:17px;margin:0 0 8px}h3{font-size:14px;margin:12px 0 4px}
+p{margin:4px 0}.mute{color:var(--mute)}.small{font-size:13px}
+section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin:14px 0}
+.badges{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.badge{padding:3px 10px;border-radius:999px;font-size:12.5px;border:1px solid var(--line);background:var(--neubg);color:var(--neu)}
+.badge.warn{background:var(--warnbg);color:var(--warn);border-color:var(--warn)}
+.stages{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.stage{border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.stage b{display:block}.stage .st{font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+.st.done{color:var(--ok)}.st.partial,.st.preview{color:var(--warn)}.st.todo{color:var(--mute)}
+.funnel .row{display:grid;grid-template-columns:200px 1fr 70px;gap:8px;align-items:center;margin:4px 0}
+.bar{height:14px;background:var(--neubg);border-radius:3px;overflow:hidden}.bar i{display:block;height:100%;background:var(--chart)}
+.gates{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px}
+.gate{border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.gate code,.mono{font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px 18px;margin:12px 0}
+.controls label{display:block;font-size:13px}.controls input[type=range]{width:100%}
+button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:6px;padding:4px 10px;cursor:pointer}
+button:hover,button.on{border-color:var(--accent);color:var(--accent)}
+input[type=search]{font:inherit;padding:5px 9px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);min-width:200px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.tag{display:inline-block;padding:1px 8px;border-radius:4px;font-size:12px;font-weight:600;white-space:nowrap}
+.v-SURVIVES{background:var(--okbg);color:var(--ok)}
+.v-FAILS_HR,.v-FAILS_CAP,.v-FAILS_POOL{background:var(--badbg);color:var(--bad)}
+.v-CONTINGENCY,.v-UNIT,.v-INSUFFICIENT{background:var(--neubg);color:var(--neu)}
+.g-A{background:var(--okbg);color:var(--ok)}.g-B{background:var(--warnbg);color:var(--warn)}.g-C{background:var(--badbg);color:var(--bad)}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{cursor:pointer;white-space:nowrap;user-select:none}th:hover{color:var(--accent)}
+tr.item{cursor:pointer}tr.item:hover{background:var(--neubg)}tr.sel{background:var(--neubg)}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+.detail{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;margin:6px 0}
+.step{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;margin:6px 0}
+.pass{color:var(--ok);font-weight:700}.fail{color:var(--bad);font-weight:700}.info{color:var(--mute);font-weight:700}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}
+.card{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:8px 0}
+svg text{fill:var(--mute);font-size:11px}svg .pt{cursor:pointer}svg .pt:hover{stroke:var(--ink);stroke-width:2}
+.wrapx{overflow-x:auto}
+a{color:var(--accent)}
+.empty{padding:14px;border:1px dashed var(--line);border-radius:8px;color:var(--mute)}
+@media (max-width:640px){.funnel .row{grid-template-columns:120px 1fr 50px}main{padding:10px}}
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script>
+const DATA = /*__DATA__*/null;
+
+/*__SCREEN_JS_START__*/
+function screenRow(c, P) {
+  const unit = c.price_unit, price = c.price_usd, hrs = c.hours_per_account_month, pool = c.pool_count;
+  if (unit === "contingency") return {verdict: "CONTINGENCY", why: "paid as a share of recovery; the flat-price test cannot score it"};
+  if (unit === "project" || unit === "per_unit") return {verdict: "UNIT", why: "priced per " + unit + "; needs a monthly accounts figure to convert"};
+  const missing = [["price", price], ["hours", hrs], ["pool", pool]].filter(x => x[1] == null).map(x => x[0]);
+  if (unit !== "month" || missing.length) return {verdict: "INSUFFICIENT", why: "missing " + (missing.length ? missing.join(", ") : "monthly price unit")};
+  const perHr = price / hrs, accounts = Math.ceil(P.target / price), cap = P.deliv / hrs;
+  const row = {per_hr: perHr, accounts: accounts, cap: cap, price_flag: price > P.flag};
+  for (const [tag, conv] of [["base", P.base], ["stress", P.stress]]) {
+    const contacts = accounts / conv;
+    row["contacts_" + tag] = contacts;
+    row["weeks_" + tag] = contacts / P.out;
+    row["pool_ok_" + tag] = contacts <= pool * P.reach;
+  }
+  if (perHr < P.bar) { row.verdict = "FAILS_HR"; row.why = "$" + perHr.toFixed(0) + "/hr is below the $" + P.bar + "/hr bar"; }
+  else if (accounts > cap) { row.verdict = "FAILS_CAP"; row.why = "needs " + accounts.toFixed(1) + " accounts, capacity is " + cap.toFixed(1); }
+  else if (!row.pool_ok_base) { row.verdict = "FAILS_POOL"; row.why = "reaching enough contacts burns over half the pool"; }
+  else { row.verdict = "SURVIVES"; row.why = "passes capacity and reach at base conversion"; }
+  row.survives_stress = row.pool_ok_stress && row.verdict === "SURVIVES";
+  return row;
+}
+/*__SCREEN_JS_END__*/
+
+const $ = (s, r) => (r || document).querySelector(s);
+function h(tag, attrs) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (k === "class") e.className = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else if (v !== false && v != null) e.setAttribute(k, v);
+  }
+  for (const kid of Array.prototype.slice.call(arguments, 2).flat(Infinity)) {
+    if (kid == null || kid === false) continue;
+    e.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
+  }
+  return e;
+}
+const SVGNS = "http://www.w3.org/2000/svg";
+function sv(tag, attrs) { const e = document.createElementNS(SVGNS, tag); for (const [k, v] of Object.entries(attrs || {})) e.setAttribute(k, v); return e; }
+const money = n => n == null ? "n/a" : "$" + Math.round(n).toLocaleString();
+const num = (n, d) => n == null ? "n/a" : Number(n).toLocaleString(undefined, {maximumFractionDigits: d == null ? 1 : d});
+const pct = n => (n * 100).toFixed(2).replace(/\.?0+$/, "") + "%";
+const DEF = Object.assign({}, DATA.params);
+const P = Object.assign({}, DATA.params);
+const S = {verdict: null, grade: null, text: "", sort: {key: "weeks", dir: 1}, sel: null, limit: 150};
+const VERDICT_TEXT = {SURVIVES: "Survives", FAILS_HR: "Fails $/hr", FAILS_CAP: "Fails capacity", FAILS_POOL: "Fails reach",
+  CONTINGENCY: "Contingency (not scored)", UNIT: "Per-unit price (not scored)", INSUFFICIENT: "Missing inputs (not scored)"};
+const isHttp = u => typeof u === "string" && /^https?:\/\//.test(u);
+const priceCited = r => !!(r.grounded && (r.grounded_fields || []).includes("price") && isHttp(r.price_url));
+const poolCited = r => !!(r.grounded && (r.grounded_fields || []).includes("pool") && isHttp(r.pool_url));
+const tag = (cls, text) => h("span", {class: "tag " + cls}, text);
+let results = [];
+
+function compute() {
+  results = DATA.rows.map(r => ({r: r, s: screenRow(r, P)}));
+}
+const atDefaults = () => Object.keys(DEF).every(k => P[k] === DEF[k]);
+const stored = x => x.r.screen && x.r.screen.verdict;
+
+function funnel() {
+  const R = results, n = R.length;
+  const scr = R.filter(x => !["CONTINGENCY", "UNIT", "INSUFFICIENT"].includes(x.s.verdict));
+  const surv = R.filter(x => x.s.verdict === "SURVIVES");
+  const steps = [
+    ["Queries run", DATA.queries_done, DATA.queries_total],
+    ["Raw candidates", DATA.n_raw, Math.max(DATA.n_raw, 1)],
+    ["Unique after clustering", n, Math.max(DATA.n_raw, n, 1)],
+    ["Scoreable (monthly price + hours + pool)", scr.length, Math.max(n, 1)],
+    ["Survive base-case screen", surv.length, Math.max(n, 1)],
+    ["...and survive stress conversion", surv.filter(x => x.s.survives_stress).length, Math.max(n, 1)],
+    ["...and price not flagged enterprise-scale", surv.filter(x => !x.s.price_flag).length, Math.max(n, 1)],
+    ["Price or pool backed by a cited URL", R.filter(x => x.r.grounded).length, Math.max(n, 1)],
+    ["Evidence grade A or B", R.filter(x => x.r.verify && ["A", "B"].includes(x.r.verify.grade)).length, Math.max(n, 1)],
+  ];
+  return h("div", {class: "funnel"}, steps.map(s => h("div", {class: "row"},
+    h("span", {class: "small"}, s[0]), h("div", {class: "bar"}, h("i", {style: "width:" + Math.min(100, 100 * s[1] / s[2]) + "%"})), h("b", {class: "n"}, num(s[1], 0)))));
+}
+
+function gates() {
+  const g = (title, formula, body) => h("div", {class: "gate"}, h("b", null, title), h("p", {class: "mono"}, formula), h("p", {class: "small mute"}, body));
+  return h("div", {class: "gates"},
+    g("Gate 0: can it be scored?", "monthly price + hours + pool", "Only flat monthly prices with all three numbers are scored. Contingency, per-project and per-unit offers, and rows missing a number, are parked in their own buckets instead of being guessed."),
+    g("Gate 1: revenue per hour", "price / hours >= $" + P.bar, "Each hour of delivery must earn at least the bar ($10k MRR over 173.2 hours = $57.74/hr in the repo). Below it, the work cannot pay even at full capacity."),
+    g("Gate 2: capacity", "ceil(target / price) <= " + P.deliv + " / hours", "Whole accounts needed for " + money(P.target) + " MRR (rounded up: half a customer does not exist) must fit inside your delivery hours per month."),
+    g("Price flag (not a verdict)", "price > $" + P.flag.toLocaleString() + " / month", "Prices this high are unlikely for the small businesses one person can reach. Flagged candidates stay visible but are kept off the shortlist."),
+    g("Gate 3: reach", "(accounts / conversion) <= " + P.reach * 100 + "% of pool", "Contacts needed at " + pct(P.base) + " contact-to-paid must stay under half the buyer pool, or you burn the market. The same test at " + pct(P.stress) + " is the stress case (shown, does not change the verdict)."),
+    g("Speed (ranking only)", "contacts / " + P.out + " per week", "Weeks to reach the target by outreach alone. It orders survivors but never decides pass or fail."),
+    g("Jev tags (diagnostic)", "15 typed questions", "Jev answers choice questions per candidate. The share of 'escape' answers shows how thin the evidence is. Tags never change a verdict (earlier audit: the model layer only vetoes)."));
+}
+
+function slider(label, key, min, max, step, fmt) {
+  const out = h("b", null, fmt(P[key]));
+  const inp = h("input", {type: "range", min: min, max: max, step: step, value: P[key], "aria-label": label,
+    oninput: e => { P[key] = parseFloat(e.target.value); out.textContent = fmt(P[key]); refresh(); }});
+  inp.dataset.key = key;
+  return h("label", null, label + ": ", out, h("br"), inp);
+}
+function controls() {
+  const sel = h("select", {"aria-label": "target MRR", onchange: e => { P.target = parseFloat(e.target.value); refresh(); }},
+    [3000, 5000, 10000].map(v => h("option", {value: v, selected: v === P.target ? "selected" : null}, money(v) + " MRR")));
+  const wrap = h("div", {class: "controls"},
+    h("label", null, "Target: ", h("br"), sel),
+    slider("Delivery hours / month", "deliv", 60, 300, 10, v => v + " h"),
+    slider("Outreach contacts / week", "out", 10, 400, 10, v => String(v)),
+    slider("Base conversion (contact to paid)", "base", 0.0005, 0.015, 0.0005, pct),
+    slider("Stress conversion", "stress", 0.0002, 0.005, 0.0002, pct),
+    slider("Revenue-per-hour bar", "bar", 20, 150, 1, v => "$" + v),
+    slider("Max share of pool to contact", "reach", 0.1, 1, 0.05, v => Math.round(v * 100) + "%"),
+    slider("Flag monthly prices above", "flag", 500, 10000, 250, v => "$" + v.toLocaleString()));
+  return h("div", null, wrap, h("button", {onclick: () => { Object.assign(P, DEF); location.hash = ""; build(); }}, "Reset to pipeline defaults"));
+}
+
+function parity() {
+  const withStored = results.filter(stored);
+  if (!withStored.length) return h("p", {class: "small mute"}, "Screen stage not saved yet; verdicts below are computed in this page.");
+  if (!atDefaults()) return h("p", {class: "small mute"}, "Custom parameters in use. Verdicts differ from the saved pipeline run by design.");
+  const bad = withStored.filter(x => x.r.screen.verdict !== x.s.verdict);
+  return h("p", {class: "small " + (bad.length ? "fail" : "pass")}, bad.length
+    ? bad.length + " of " + withStored.length + " verdicts disagree with the saved pipeline screen."
+    : "Check passed: this page's screen matches the pipeline's saved verdicts on all " + withStored.length + " rows.");
+}
+
+function chips() {
+  const counts = {};
+  results.forEach(x => counts[x.s.verdict] = (counts[x.s.verdict] || 0) + 1);
+  const order = Object.keys(VERDICT_TEXT);
+  return h("div", {class: "chips"},
+    h("button", {class: S.verdict === null ? "on" : "", onclick: () => { S.verdict = null; refresh(); }}, "All (" + results.length + ")"),
+    order.filter(k => counts[k]).map(k => h("button", {class: S.verdict === k ? "on" : "", onclick: () => { S.verdict = S.verdict === k ? null : k; refresh(); }},
+      VERDICT_TEXT[k] + " (" + counts[k] + ")")));
+}
+
+function scatter() {
+  const pts = results.filter(x => x.s.per_hr != null && x.s.weeks_base != null);
+  if (!pts.length) return h("div", {class: "empty"}, "Nothing scoreable yet.");
+  const W = 620, H = 330, L = 52, B = 38, T = 12, Rm = 14;
+  const xs = pts.map(x => Math.log10(Math.max(x.s.weeks_base, 0.5))), ys = pts.map(x => Math.log10(Math.max(x.s.per_hr, 1)));
+  const x0 = Math.floor(Math.min.apply(null, xs.concat([0]))), x1 = Math.ceil(Math.max.apply(null, xs.concat([1])));
+  const y0 = Math.floor(Math.min.apply(null, ys.concat([0.5]))), y1 = Math.ceil(Math.max.apply(null, ys.concat([2])));
+  const X = v => L + (v - x0) / (x1 - x0) * (W - L - Rm), Y = v => H - B - (v - y0) / (y1 - y0) * (H - B - T);
+  const svg = sv("svg", {viewBox: "0 0 " + W + " " + H, width: "100%", role: "img", "aria-label": "Revenue per hour against weeks to target"});
+  for (let i = x0; i <= x1; i++) { svg.append(sv("line", {x1: X(i), x2: X(i), y1: T, y2: H - B, stroke: "var(--line)"}));
+    const t = sv("text", {x: X(i), y: H - B + 14, "text-anchor": "middle"}); t.textContent = num(Math.pow(10, i), 0) + " wk"; svg.append(t); }
+  for (let i = y0; i <= y1; i++) { svg.append(sv("line", {x1: L, x2: W - Rm, y1: Y(i), y2: Y(i), stroke: "var(--line)"}));
+    const t = sv("text", {x: L - 6, y: Y(i) + 4, "text-anchor": "end"}); t.textContent = "$" + num(Math.pow(10, i), 0); svg.append(t); }
+  svg.append(sv("line", {x1: L, x2: W - Rm, y1: Y(Math.log10(P.bar)), y2: Y(Math.log10(P.bar)), stroke: "var(--bad)", "stroke-dasharray": "5 4"}));
+  const bt = sv("text", {x: W - Rm, y: Y(Math.log10(P.bar)) - 4, "text-anchor": "end"}); bt.textContent = "$/hr bar"; svg.append(bt);
+  const col = v => v === "SURVIVES" ? "var(--ok)" : v.startsWith("FAILS") ? "var(--bad)" : "var(--neu)";
+  pts.forEach(x => {
+    const c = sv("circle", {cx: X(Math.log10(Math.max(x.s.weeks_base, 0.5))), cy: Y(Math.log10(Math.max(x.s.per_hr, 1))), r: S.sel === x.r.id ? 7 : 4.5,
+      fill: col(x.s.verdict), "fill-opacity": 0.75, class: "pt", tabindex: "0"});
+    const t = sv("title"); t.textContent = x.r.offer + " | " + money(x.s.per_hr) + "/hr | " + num(x.s.weeks_base) + " wk | " + VERDICT_TEXT[x.s.verdict];
+    c.append(t);
+    const pick = () => { S.sel = x.r.id; S.verdict = null; refresh(true); };
+    c.addEventListener("click", pick); c.addEventListener("keydown", e => { if (e.key === "Enter") pick(); });
+    svg.append(c);
+  });
+  const ax = sv("text", {x: (L + W) / 2, y: H - 4, "text-anchor": "middle"}); ax.textContent = "weeks to target by outreach alone (log)"; svg.append(ax);
+  const ay = sv("text", {x: 12, y: H / 2, transform: "rotate(-90 12 " + H / 2 + ")", "text-anchor": "middle"}); ay.textContent = "revenue per delivery hour (log)"; svg.append(ay);
+  return svg;
+}
+
+function saturation() {
+  const rows = DATA.saturation || [];
+  if (!rows.length) return h("div", {class: "empty"}, "Run dedupe to see saturation.");
+  const mx = Math.max.apply(null, rows.map(r => r.per_query).concat([0.01]));
+  return h("div", null, rows.map(r => h("div", {class: "funnel"}, h("div", {class: "row"},
+    h("span", {class: "small"}, "queries " + r.queries), h("div", {class: "bar"}, h("i", {style: "width:" + 100 * r.per_query / mx + "%"})), h("b", {class: "n"}, r.new_unique)))),
+    DATA.pending_batches ? h("p", {class: "small mute"}, DATA.pending_batches + " more batches not run yet. A falling bar means the seed matrix is saturating; a flat one means more queries still find new ventures. The last bar is partial if the run is mid-batch.") : null);
+}
+
+function diversity() {
+  // Repeated round numbers mean the model is templating guesses, so survivor counts partly reflect its habits.
+  const mo = results.filter(x => x.r.price_unit === "month" && x.r.price_usd != null && !priceCited(x.r));
+  if (mo.length < 10) return null;
+  const prices = new Set(mo.map(x => x.r.price_usd));
+  const pools = {}; results.forEach(x => { if (x.r.pool_count != null && !poolCited(x.r)) pools[x.r.pool_count] = (pools[x.r.pool_count] || 0) + 1; });
+  const top = Object.entries(pools).sort((a, b) => b[1] - a[1]).slice(0, 3).map(e => num(+e[0], 0) + " (x" + e[1] + ")").join(", ");
+  const templated = prices.size < mo.length / 3 || (Object.values(pools).sort((a, b) => b - a)[0] || 0) > results.length / 8;
+  return h("p", {class: "small " + (templated ? "fail" : "mute")}, "Guess diversity: " + prices.size + " distinct guessed monthly prices across " + mo.length + " candidates. Most repeated pool guesses: " + top + "." + (templated ? " Heavy repetition: the model is reusing round numbers, so treat survivor counts as provisional until figures are grounded." : ""));
+}
+
+function provenance() {
+  const n = results.length;
+  const pc = results.filter(x => priceCited(x.r)).length, qc = results.filter(x => poolCited(x.r)).length;
+  const row = (l, v) => h("div", {class: "row"}, h("span", {class: "small"}, l), h("div", {class: "bar"}, h("i", {style: "width:" + (n ? 100 * v / n : 0) + "%"})), h("b", {class: "n"}, v + "/" + n));
+  const cen = results.filter(x => x.r.pool_basis === "census").length;
+  return h("div", {class: "funnel"}, row("Price from a cited page", pc), row("Pool from a cited page", qc), row("...of which official Census counts", cen), row("Hours per account from a source", 0),
+    diversity(), h("p", {class: "small mute"}, "Everything not cited is a model's guess. Hours per account are always a guess: no web page states them."));
+}
+
+function shortlist() {
+  const flagged = results.filter(x => x.s.verdict === "SURVIVES" && x.s.price_flag).length;
+  const jevOut = results.filter(x => x.s.verdict === "SURVIVES" && x.r.jev_removed).length;
+  const GO = {A: 0, B: 1, C: 2};
+  const top = results.filter(x => x.s.verdict === "SURVIVES" && !x.s.price_flag && !x.r.jev_removed && x.r.verify && ["A", "B"].includes(x.r.verify.grade))
+    .sort((a, b) => GO[a.r.verify.grade] - GO[b.r.verify.grade] || a.s.weeks_base - b.s.weeks_base || b.s.per_hr - a.s.per_hr).slice(0, 15);
+  const note = h("div", null,
+    flagged ? h("p", {class: "small mute"}, flagged + " survivors are flagged as enterprise-scale prices and kept off this list (see the flag marker in the table).") : null,
+    jevOut ? h("p", {class: "small mute"}, jevOut + " survivors were removed by Jev's second opinion (see section 6).") : null);
+  if (!top.length) return h("div", {class: "empty"}, "Empty by design: a candidate needs to survive the screen AND have a cited page that loads (grade A or B). Run ground, then verify, to fill this in.");
+  return h("div", null, note, top.map((x, i) => {
+    const contacts = Math.round(P.out * 3);
+    return h("div", {class: "card"},
+      h("b", null, (i + 1) + ". " + x.r.offer), " ", tag("g-" + x.r.verify.grade, "grade " + x.r.verify.grade),
+      h("p", {class: "small"}, x.r.buyer + " | " + money(x.r.price_usd) + "/mo | " + num(x.s.per_hr, 0) + " $/hr | " + num(x.s.accounts) + " accounts | " + num(x.s.weeks_base) + " wk at " + pct(P.base)),
+      h("p", {class: "small"}, "Test: contact " + contacts + " buyers over 3 weeks via " + (x.r.channel || "a free channel you choose") + "; expected paid at " + pct(P.base) + ": about " + num(contacts * P.base) + ". Pass: 1 paid, or 3 booked calls from warm replies."),
+      h("p", {class: "small mute"}, "Blockers: " + (x.r.blockers || "none stated")),
+      h("button", {onclick: () => { S.sel = x.r.id; S.verdict = null; refresh(true); }}, "Show working"));
+  }));
+}
+
+function step(ok, label, body) {
+  return h("div", {class: "step"}, h("span", {class: ok === null ? "info" : ok ? "pass" : "fail"}, ok === null ? "INFO" : ok ? "PASS" : "FAIL"),
+    h("span", null, h("b", null, label), h("br"), h("span", {class: "mono"}, body)));
+}
+function detail(x) {
+  const r = x.r, s = x.s;
+  const src = (cited, url) => cited ? h("span", null, "cited: ", isHttp(url) ? h("a", {href: url, target: "_blank", rel: "noopener noreferrer"}, url) : url) : "model guess";
+  const box = h("div", {class: "detail"}, h("h3", null, r.offer), h("p", {class: "small mute"}, r.buyer + " | " + r.sector + " | " + r.pain + " | " + r.model + (r.cluster_size > 1 ? " | merged from " + r.cluster_size + " near-duplicates" : "")));
+  box.append(h("p", null, r.task));
+  box.append(h("h3", null, "Inputs and where they came from"));
+  box.append(h("div", {class: "small"},
+    h("div", null, "Price: ", money(r.price_usd), " per ", r.price_unit || "?", " (", src(priceCited(r), r.price_url), ")",
+      r.price_basis && r.price_basis !== "as quoted" ? " [" + r.price_basis + "]" : null),
+    r.price_rejected ? h("div", {class: "fail"}, "A price was found but not used: " + r.price_rejected + ".") : null,
+    r.price_kind ? h("div", {class: "mute"}, "Quoted figure classified as: " + r.price_kind.replace(/_/g, " ")) : null,
+    r.evidence_quote ? h("div", {class: "mute"}, "Quoted from the page: \u201c" + r.evidence_quote + "\u201d" + (r.grounded_via ? " (found via " + r.grounded_via + ")" : "")) : null,
+    h("div", null, "Hours per account per month: ", num(r.hours_per_account_month), " (model guess)"),
+    h("div", null, "Buyer pool: ", num(r.pool_count, 0), " (", src(poolCited(r), r.pool_url), ")",
+      r.pool_basis === "census" ? " [official Census count, industry-level upper bound, not this exact buyer]" : null),
+    r.pool_note && r.pool_basis === "census" ? h("div", {class: "mute"}, r.pool_note) : null,
+    r.guess ? h("div", {class: "mute"}, "Before grounding the model guessed: price " + money(r.guess.price_usd) + ", pool " + num(r.guess.pool_count, 0)) : null));
+  box.append(h("h3", null, "The test, step by step at the current settings"));
+  if (s.per_hr == null) box.append(step(null, "Not scored", s.why));
+  else {
+    box.append(step(s.per_hr >= P.bar, "Gate 1: revenue per hour", money(r.price_usd) + " / " + num(r.hours_per_account_month) + " h = " + money(s.per_hr) + "/hr; bar is $" + P.bar));
+    box.append(step(s.accounts <= s.cap, "Gate 2: capacity", "ceil(" + money(P.target) + " / " + money(r.price_usd) + ") = " + num(s.accounts, 0) + " accounts needed; capacity " + P.deliv + " / " + num(r.hours_per_account_month) + " = " + num(s.cap) + " accounts"));
+    box.append(step(s.pool_ok_base, "Gate 3: reach at " + pct(P.base), num(s.accounts) + " / " + pct(P.base) + " = " + num(s.contacts_base, 0) + " contacts; limit " + num(r.pool_count * P.reach, 0) + " (" + Math.round(P.reach * 100) + "% of pool)"));
+    box.append(step(null, "Speed", num(s.contacts_base, 0) + " contacts / " + P.out + " per week = " + num(s.weeks_base) + " weeks to target"));
+    box.append(step(s.pool_ok_stress, "Stress reach at " + pct(P.stress), num(s.contacts_stress, 0) + " contacts, " + num(s.weeks_stress) + " weeks (informational)"));
+  }
+  box.append(h("p", null, "Verdict: ", tag("v-" + s.verdict, VERDICT_TEXT[s.verdict]), " ", s.why));
+  if (s.price_flag) box.append(h("p", {class: "small fail"}, "Flag: " + money(r.price_usd) + "/month is above $" + P.flag.toLocaleString() + ", unlikely for small-business buyers. Kept off the shortlist."));
+  if (r.verify) box.append(h("p", {class: "small"}, "Evidence grade ", tag("g-" + r.verify.grade, r.verify.grade), " ", r.verify.reason));
+  box.append(h("p", {class: "small"}, "Channel: " + (r.channel || "n/a") + " | Blockers: " + (r.blockers || "none stated")));
+  if (r.jev_removed) box.append(h("p", {class: "small fail"}, "Removed from the shortlist by Jev: " + r.jev_removed + "."));
+  const t2 = r.tags2 || {};
+  if (t2.status === "ok") {
+    box.append(h("h3", null, "Jev second opinion (two runs with shuffled option order)"));
+    box.append(h("div", {class: "small mono"}, Object.entries(t2.final).map(e => h("div", null,
+      e[0] + " = " + e[1] + "  (run answers: " + t2.runs.map(run => run[e[0]] ? run[e[0]][0] : "-").join(", ") + ")"))));
+  }
+  const t = r.tags || {};
+  if (t.status === "ok") {
+    box.append(h("h3", null, "Jev tags (diagnostic only; escape rate " + Math.round(t.escape_rate * 100) + "%)"));
+    box.append(h("div", {class: "small mono"}, Object.entries(t.answers).map(e => h("div", null, (DATA.questions[e[0]] ? DATA.questions[e[0]].family + ": " : "") + e[0] + " = " + e[1][0] + " (" + e[1][1] + ")"))));
+  } else if (t.status) box.append(h("p", {class: "small mute"}, "Jev: " + t.status));
+  return box;
+}
+
+const SORTS = {
+  offer: x => x.r.offer.toLowerCase(), price: x => x.r.price_usd == null ? -1 : x.r.price_usd,
+  hr: x => x.s.per_hr == null ? -1 : x.s.per_hr, accounts: x => x.s.accounts == null ? 1e9 : x.s.accounts,
+  weeks: x => x.s.weeks_base == null ? 1e9 : x.s.weeks_base, verdict: x => x.s.verdict, grade: x => x.r.verify ? x.r.verify.grade : "Z",
+};
+function table(scrollTo) {
+  let rows = results.slice();
+  if (S.verdict) rows = rows.filter(x => x.s.verdict === S.verdict);
+  if (S.text) { const q = S.text.toLowerCase(); rows = rows.filter(x => (x.r.offer + " " + x.r.buyer + " " + x.r.sector + " " + x.r.pain).toLowerCase().includes(q)); }
+  const f = SORTS[S.sort.key];
+  rows.sort((a, b) => { const A = f(a), B = f(b); return (A < B ? -1 : A > B ? 1 : 0) * S.sort.dir; });
+  const shown = S.sel ? rows : rows.slice(0, S.limit);
+  const th = (label, key, cls) => h("th", {class: cls || "", onclick: () => { S.sort = {key: key, dir: S.sort.key === key ? -S.sort.dir : 1}; refresh(); }}, label + (S.sort.key === key ? (S.sort.dir > 0 ? " ▲" : " ▼") : ""));
+  const body = h("tbody");
+  shown.forEach(x => {
+    const tr = h("tr", {class: "item" + (S.sel === x.r.id ? " sel" : ""), tabindex: "0", id: "row-" + x.r.id,
+      onclick: () => { S.sel = S.sel === x.r.id ? null : x.r.id; refresh(true); }},
+      h("td", null, x.r.offer), h("td", {class: "small"}, x.r.buyer),
+      h("td", {class: "n"}, money(x.r.price_usd) + (x.r.price_unit && x.r.price_unit !== "month" ? "/" + x.r.price_unit : "/mo") + (priceCited(x.r) ? " ✓" : "") + (x.s.price_flag ? " ⚑" : "")),
+      h("td", {class: "n"}, x.s.per_hr == null ? "-" : money(x.s.per_hr)), h("td", {class: "n"}, x.s.accounts == null ? "-" : num(x.s.accounts)),
+      h("td", {class: "n"}, x.s.weeks_base == null ? "-" : num(x.s.weeks_base)), h("td", null, tag("v-" + x.s.verdict, VERDICT_TEXT[x.s.verdict])),
+      h("td", null, x.r.verify ? tag("g-" + x.r.verify.grade, x.r.verify.grade) : "-"));
+    body.append(tr);
+    if (S.sel === x.r.id) body.append(h("tr", null, h("td", {colspan: "8"}, detail(x))));
+  });
+  const wrap = h("div", {class: "wrapx"}, h("table", null,
+    h("thead", null, h("tr", null, th("Offer", "offer"), h("th", null, "Buyer"), th("Price", "price", "n"), th("$/hr", "hr", "n"), th("Accounts", "accounts", "n"), th("Weeks", "weeks", "n"), th("Verdict", "verdict"), th("Grade", "grade"))), body));
+  const more = !S.sel && rows.length > shown.length ? h("button", {onclick: () => { S.limit += 200; refresh(); }}, "Show more (" + (rows.length - shown.length) + " left)") : null;
+  return h("div", null, h("p", {class: "small mute"}, rows.length + " candidates. ✓ = price from a cited page. ⚑ = price above the flag threshold (enterprise-scale?). Click a row for its working."), wrap, more);
+}
+
+function jevSection() {
+  const J = DATA.jev, box = h("section", null, h("h2", null, "6. Jev second opinion"));
+  if (!J || (!J.tagged && !J.quality)) {
+    box.append(h("div", {class: "empty"}, "Not run yet. `python3 discover.py tagcheck` shows an offline coverage estimate; `tagcheck --provider live --run` tests the five questions on a hand-labelled gold set; `tag --provider live` then tags the survivors."));
+    return box;
+  }
+  box.append(h("p", {class: "small mute"}, "Jev answers five typed questions about each survivor, twice, with the answer options shuffled. An answer only counts if both runs agree. Jev can only remove candidates from the shortlist, never add them, and only through a question that passed the quality check below."));
+  const q = J.quality;
+  if (q) {
+    const f = v => v == null ? "-" : Number(v).toFixed(2);
+    const rows = Object.entries(q.questions).map(e => {
+      const v = e[1];
+      return h("tr", null, h("td", null, e[0]), h("td", {class: "n"}, v.tagged), h("td", {class: "n"}, f(v.escape_rate)), h("td", {class: "n"}, f(v.stability)),
+        h("td", {class: "n"}, f(v.gold_agreement)), h("td", {class: "n"}, f(v.groq_agreement)),
+        h("td", null, tag(v.keep ? "v-SURVIVES" : "v-FAILS_HR", v.keep ? "keep" : "cut"), " ", v.keep ? "" : v.why_cut.join("; ")));
+    });
+    box.append(h("h3", null, "Quality check on the hand-labelled gold set (" + q.items + " items; pass = escape at most " + q.thresholds.escape_max + ", stability at least " + q.thresholds.stability_min + ", gold agreement at least " + q.thresholds.gold_min + ")"),
+      h("div", {class: "wrapx"}, h("table", null, h("thead", null, h("tr", null, ["Question", "Items", "Escape rate", "Stable", "Agrees with gold", "Agrees with Groq", "Result"].map(t => h("th", null, t)))), h("tbody", null, rows))),
+      h("p", {class: "small mute"}, "Gold labels are the reviewer's judgment from cached text, plus synthetic probe quotes for the bad cases. Read discovery/gold_tags.json and correct anything you disagree with."));
+  } else {
+    box.append(h("p", {class: "small fail"}, "No quality check yet, so Jev removes nothing. Run `python3 discover.py tagcheck --provider live --run`."));
+  }
+  if (J.tagged) {
+    box.append(h("h3", null, "What Jev said across " + J.tagged + " tagged survivors"));
+    box.append(h("div", {class: "wrapx"}, h("table", null, h("tbody", null, J.questions.map(qq => h("tr", null,
+      h("td", null, h("b", null, qq.id), h("br"), h("span", {class: "small mute"}, qq.text)),
+      h("td", {class: "small"}, Object.entries(qq.answers).sort((a, b) => b[1] - a[1]).map(e => (qq.labels[e[0]] || e[0]) + ": " + e[1]).join("  |  ") || "no answers")))))));
+  }
+  box.append(h("h3", null, "Removed from the shortlist by Jev (" + J.removed.length + ")"));
+  box.append(J.removed.length ? h("div", null, J.removed.map(r => h("p", {class: "small"}, h("b", null, r.offer), ": " + r.reason + "."))) : h("p", {class: "small mute"}, J.trusted.length ? "None: Jev agrees with every shortlisted price." : "None, because no question has passed the quality check."));
+  return box;
+}
+
+function view() {
+  const frag = document.createDocumentFragment();
+  frag.append(
+    h("section", null, h("h2", null, "1. What happened in this run"), h("div", {class: "stages"}, DATA.stages.map(s =>
+      h("div", {class: "stage"}, h("span", {class: "st " + s.state}, s.state), h("b", null, s.name), h("span", {class: "small mute"}, s.detail)))),
+      h("div", {style: "margin-top:12px"}, funnel())),
+    h("section", null, h("h2", null, "2. How each candidate is tested"), gates(), h("h3", null, "Change the assumptions and watch every verdict update"), controls(), parity()),
+    h("section", null, h("h2", null, "3. Results"), chips(),
+      h("div", {class: "two"}, h("div", null, h("h3", null, "Revenue per hour vs. time to target"), scatter(), h("p", {class: "small mute"}, "Each dot is a candidate; click one to open its working. Above the dashed line passes Gate 1.")),
+        h("div", null, h("h3", null, "Are we still finding new ventures? (new unique per query, by batch of 25)"), saturation(), h("h3", null, "How much of this is evidence vs. guess"), provenance()))),
+    h("section", null, h("h2", null, "4. Shortlist: survived the screen and has a cited page that loads"), shortlist()),
+    h("section", null, h("h2", null, "5. Every candidate"), h("div", {style: "margin-bottom:8px"}, h("input", {type: "search", placeholder: "Filter by offer, buyer, sector...", value: S.text, "aria-label": "filter candidates",
+      oninput: e => { S.text = e.target.value; refreshTable(); }})), h("div", {id: "tbl"}, table())),
+    jevSection(),
+    h("section", null, h("h2", null, "What this cannot tell you"),
+      h("p", null, "The test can rule ideas out. It cannot rank survivors by how likely they are to stick: that needs real buyer replies, which no model supplies."),
+      h("p", null, "Prices, hours and pools marked 'model guess' were never seen on a page. Only a cited, loadable page raises a candidate above a guess, and even then it shows a price exists, not that you can win it."),
+      h("p", null, "Contact-to-paid conversion is an assumption from vendor-published outreach data, not a measurement of you. Move the sliders to see how fragile each verdict is.")));
+  return frag;
+}
+function refreshTable() { const t = $("#tbl"); if (t) t.replaceChildren(table()); }
+function build() {
+  compute();
+  const app = $("#app");
+  const flags = [h("span", {class: "badge"}, "Generated " + DATA.generated), h("span", {class: "badge"}, "Source: " + DATA.source)];
+  if (DATA.stub) flags.push(h("span", {class: "badge warn"}, "STUB RUN: all numbers are synthetic"));
+  if (DATA.preview) flags.push(h("span", {class: "badge warn"}, "Preview: run dedupe to save clustering"));
+  if (DATA.queries_done < DATA.queries_total) flags.push(h("span", {class: "badge warn"}, "Partial run: " + DATA.queries_done + "/" + DATA.queries_total + " queries"));
+  app.replaceChildren(h("h1", null, "Venture discovery results"), h("p", {class: "mute"}, "Groq proposes, the arithmetic screen decides, Jev tags, cited pages grade the evidence."), h("div", {class: "badges"}, flags), view());
+}
+function refresh(scroll) {
+  const app = $("#app");
+  const keep = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.key : null;
+  const y = window.scrollY;
+  compute();
+  const secs = app.querySelectorAll("section");
+  // rebuild result sections only; keep the controls (section 2) so sliders keep focus while dragged
+  const fresh = view().querySelectorAll("section");
+  [0, 2, 3, 4].forEach(i => secs[i].replaceWith(fresh[i]));
+  const par = secs[1].lastElementChild; par.replaceWith(parity());
+  const gt = secs[1].querySelector(".gates"); gt.replaceWith(gates());
+  if (scroll && S.sel) { const row = document.getElementById("row-" + S.sel); if (row) row.scrollIntoView({block: "center"}); } else window.scrollTo(0, y);
+}
+build();
+</script>
+</body>
+</html>
