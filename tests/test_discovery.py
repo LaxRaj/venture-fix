@@ -9,7 +9,7 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from discovery import questions_v2 as Q2, tagcheck as TC, census as CS, extract as X, search as SE, dashboard as DB, dedupe as D, ground as G, harvest as H, rank as R, screen as S, seeds, tag as T, verify as V
+from discovery import volume as VOL, questions_v2 as Q2, tagcheck as TC, census as CS, extract as X, search as SE, dashboard as DB, dedupe as D, ground as G, harvest as H, rank as R, screen as S, seeds, tag as T, verify as V
 from discovery.groq_client import make_lanes, StubGroq, extract_json_list, extract_json_object, GroqProvider, DailyLimit, wait_seconds
 
 
@@ -320,6 +320,56 @@ def test_pick_treats_pool_only_grounding_as_not_priced() -> None:
     assert {r["id"] for r in G.pick(rows, 10, "all")} == {"v0", "v1"}
 
 
+def test_per_unit_prices_are_scored_through_a_guessed_volume() -> None:
+    base = dict(price_unit="per_unit", price_usd=40.0, hours_per_account_month=8.0, pool_count=50000.0)
+    assert S.screen(cand("a", **base))["verdict"] == "UNIT"                                  # no volume: still not scored
+    r = S.screen(cand("a", **base, units_per_account_month=15.0))
+    assert r["derived"] is True and r["monthly_price"] == 600.0 and r["verdict"] == "SURVIVES"
+    assert r["per_hr"] == 75.0 and r["accounts"] == 5 and r["weeks_base"] == 16.7
+    assert S.screen(cand("a", **dict(base, price_usd=3.0), units_per_account_month=20.0))["verdict"] == "FAILS_HR"   # $60/mo over 8h
+    assert S.screen(cand("a", **dict(base, price_usd=4000.0), units_per_account_month=3.0))["price_flag"] is True      # derived $12,000/mo
+    assert S.screen(cand("a", price_unit="contingency", units_per_account_month=9.0))["verdict"] == "CONTINGENCY"      # volume cannot rescue it
+    assert S.screen(cand("a", price_usd=750.0, hours_per_account_month=10.0, pool_count=50000.0))["derived"] is False  # monthly rows unchanged
+
+
+def test_volume_validation_fill_and_apply() -> None:
+    assert VOL.validate({"units_per_month": 8, "unit_name": "video", "basis": "two a week"}) == {"units_per_account_month": 8.0, "unit_name": "video", "volume_basis": "two a week"}
+    for bad in (None, {}, {"units_per_month": 0}, {"units_per_month": -3}, {"units_per_month": 9999}, {"units_per_month": "many"}):
+        assert VOL.validate(bad) is None                                                     # implausible or missing: no volume, no score
+    rows = []
+    for i, (unit, price) in enumerate([("per_unit", 40.0), ("project", 900.0), ("month", 500.0), ("contingency", 100.0), ("per_unit", None)]):
+        c = cand(f"v{i} q{i}", price_unit=unit, price_usd=price, hours_per_account_month=8.0, pool_count=50000.0); c["id"] = f"v{i}"
+        c["screen"] = S.screen(c); rows.append(c)
+    assert [r["id"] for r in VOL.wanted(rows)] == ["v0", "v1"]                               # only per-unit/project rows that have a price
+    with tempfile.TemporaryDirectory() as d:
+        st = VOL.fill(StubGroq(), rows, d, log=lambda *_: None)
+        assert st["called"] == 2 and st["answered"] == 2
+        assert VOL.fill(StubGroq(), rows, d, log=lambda *_: None)["cached"] == 2            # resumes from cache
+        out = VOL.apply_cached(rows, d)
+        assert out[0]["units_per_account_month"] == 6.0 and out[0]["screen"]["derived"] and out[0]["screen"]["monthly_price"] == 240.0
+        assert out[2] == rows[2] and out[3] == rows[3]                                       # monthly and contingency rows untouched
+        assert rows[0]["screen"]["verdict"] == "UNIT"                                        # inputs not mutated
+
+        class Limit(StubGroq):
+            def complete(self, prompt, max_out=600):
+                raise RuntimeError("daily token limit reached")
+        with tempfile.TemporaryDirectory() as d2:
+            st2 = VOL.fill(Limit(), rows, d2, log=lambda *_: None)
+            assert st2["failed"] == 1 and st2["called"] == 0                                 # a limit stops the run cleanly
+
+
+def test_derived_survivors_stay_off_the_shortlist() -> None:
+    def row(i, derived):
+        c = cand(f"o{i} z{i}", price_unit="per_unit" if derived else "month", price_usd=40.0 if derived else 600.0,
+                 hours_per_account_month=8.0, pool_count=50000.0, units_per_account_month=15.0 if derived else None)
+        c["id"] = f"v{i}"; c["screen"] = S.screen(c); c["verify"] = {"grade": "A", "reason": "r"}; return c
+    rows = [row(0, True), row(1, False)]
+    assert rows[0]["screen"]["derived"] and rows[0]["screen"]["verdict"] == "SURVIVES"
+    assert [r["id"] for r in R.shortlist(rows)] == ["v1"]
+    txt = R.report(rows, 1, 2, [], stub=False)
+    assert "monthly price derived from a GUESSED volume" in txt and "o0 z0" in txt.split("## Shortlist")[1].split("## All candidates")[0]
+
+
 def test_token_budget_stops_run() -> None:
     class Spender(StubGroq):
         tokens_used = 0
@@ -349,6 +399,11 @@ def test_dashboard_js_screen_matches_python() -> None:
                                     (200, 2, 5000, "project"), (None, 4, 900, "month")]]
     for params in (dict(S.__dict__), ):
         pass
+    cases += [cand("d1", price_unit="per_unit", price_usd=40.0, units_per_account_month=15.0, hours_per_account_month=8.0, pool_count=50000.0),
+              cand("d2", price_unit="project", price_usd=900.0, units_per_account_month=2.0, hours_per_account_month=30.0, pool_count=40000.0),
+              cand("d3", price_unit="per_unit", price_usd=3.0, units_per_account_month=20.0, hours_per_account_month=5.0, pool_count=40000.0),
+              cand("d4", price_unit="per_unit", price_usd=4000.0, units_per_account_month=3.0, hours_per_account_month=9.0, pool_count=70000.0),
+              cand("d5", price_unit="per_unit", price_usd=40.0, units_per_account_month=None, hours_per_account_month=8.0, pool_count=50000.0)]
     P = {"target": S.TARGET, "deliv": S.DELIV_HOURS, "out": S.OUT_PER_WEEK, "base": S.CONV_BASE, "stress": S.CONV_STRESS,
          "bar": S.BAR_HR, "reach": S.REACH_LIMIT, "flag": S.PRICE_FLAG}
     script = js + "\nconst P=" + json.dumps(P) + ";\nconsole.log(JSON.stringify(" + json.dumps(cases) + ".map(c=>screenRow(c,P))));"
@@ -356,8 +411,8 @@ def test_dashboard_js_screen_matches_python() -> None:
     for c, got in zip(cases, json.loads(out)):
         want = S.screen(c)
         assert got["verdict"] == want["verdict"], (c, got, want)
-        assert got.get("price_flag") == want.get("price_flag"), (c, got, want)
-        for k in ("per_hr", "accounts", "cap", "weeks_base", "weeks_stress"):
+        assert got.get("price_flag") == want.get("price_flag") and bool(got.get("derived")) == bool(want.get("derived")), (c, got, want)
+        for k in ("per_hr", "accounts", "cap", "weeks_base", "weeks_stress", "monthly_price"):
             if k in want:
                 assert abs(got[k] - want[k]) < 0.06, (k, got[k], want[k])  # python rounds to 1 dp
 
