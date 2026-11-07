@@ -5,6 +5,9 @@ from __future__ import annotations
 import json
 import os
 import re
+import threading
+from collections import deque
+from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Optional
 
 EVIDENCE_KEYS = ("buyer", "pain", "supply", "workflow", "access")
@@ -92,3 +95,47 @@ def load_cached(cache_dir: str, queries: List[Dict[str, str]]) -> List[dict]:
                 c["query_index"] = idx
                 out.append(c)
     return out
+
+
+def harvest_parallel(lanes: list, queries: List[Dict[str, str]], cache_dir: str, max_tokens: Optional[int] = None,
+                     log=print) -> Dict[str, int]:
+    """Run uncached queries on several lanes at once, one worker thread per lane.
+
+    A lane that runs out (daily limit, or a persistent error) stops alone and its query goes back to the shared
+    queue for the others.  Each result is cached as soon as it arrives, so a stop at any point loses nothing.
+    """
+    os.makedirs(cache_dir, exist_ok=True)
+    path = lambda q: os.path.join(cache_dir, f"{q['id']}.json")
+    todo = deque(q for q in queries if not os.path.exists(path(q)))
+    stats = {"cached": len(queries) - len(todo), "called": 0, "candidates": 0, "failed": 0, "lanes": len(lanes), "lanes_stopped": 0}
+    lock = threading.Lock()
+    spent = lambda: sum(getattr(l, "tokens_used", 0) for l in lanes)
+
+    def worker(lane) -> None:
+        while True:
+            with lock:
+                if max_tokens is not None and spent() >= max_tokens:
+                    return
+                q = todo.popleft() if todo else None
+            if q is None:
+                return
+            try:
+                items = lane.ask(q["text"])
+            except RuntimeError as exc:
+                with lock:
+                    todo.appendleft(q)                    # another lane takes it
+                    stats["lanes_stopped"] += 1
+                log(f"lane stopped ({str(exc)[:90]})")
+                return
+            good = [c for c in (validate(i, q) for i in items) if c]
+            with open(path(q), "w", encoding="utf-8") as fh:
+                json.dump({"query": q, "candidates": good, "raw_count": len(items)}, fh)
+            with lock:
+                stats["called"] += 1
+                stats["candidates"] += len(good)
+
+    with ThreadPoolExecutor(max_workers=max(1, len(lanes))) as pool:
+        list(pool.map(worker, lanes))
+    stats["failed"] = len(todo)                              # queries nobody could run (all lanes out, or budget hit)
+    stats["tokens"] = spent()
+    return stats

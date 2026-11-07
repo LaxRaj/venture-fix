@@ -115,7 +115,8 @@ def wait_seconds(message: str) -> float:
 class GroqProvider:
     name = "groq"
 
-    def __init__(self, sleep: Callable[[float], None] = time.sleep, retries: int = 4) -> None:
+    def __init__(self, sleep: Callable[[float], None] = time.sleep, retries: int = 4, lane=None) -> None:
+        self.lane = lane                                   # (model, key index) to pin to, for parallel work
         self.keys = _collect_keys()
         self.key = self.keys[0] if self.keys else ""      # first key: model listing
         models = os.environ.get("GROQ_MODELS") or os.environ.get("GROQ_MODEL") or DEFAULT_MODEL
@@ -129,7 +130,12 @@ class GroqProvider:
             raise SystemExit("groq provider needs GROQ_API_KEY. Use --provider stub for an offline run.")
 
     def _pick(self):
-        """Next (model, key index) that still has tokens: try each key on a model before moving to the next model."""
+        """Next (model, key index) that still has tokens: try each key on a model before moving to the next model.
+        A pinned lane only ever uses its own pair, so parallel workers never share a per-minute budget."""
+        if self.lane is not None:
+            if self.lane in self.exhausted:
+                raise DailyLimit(f"daily token limit reached on lane {self.lane[0]} / key {self.lane[1] + 1}")
+            return self.lane
         for m in self.models:
             for ki in range(len(self.keys)):
                 if (m, ki) not in self.exhausted:
@@ -200,6 +206,17 @@ class GroqProvider:
         except urllib.error.URLError as exc:
             raise RuntimeError(f"could not reach Groq: {exc}") from exc
         return sorted(m.get("id", "") for m in data.get("data", []))
+
+
+def make_lanes() -> List["GroqProvider"]:
+    """One provider per (model, key) pair.  Groq's per-minute token limit applies to each pair separately, so
+    running them side by side multiplies throughput.  Lane models come from GROQ_LANE_MODELS (default: the two
+    gpt-oss models, which are the ones brainstorming has been tested on)."""
+    keys = _collect_keys()
+    models = [m.strip() for m in (os.environ.get("GROQ_LANE_MODELS") or "openai/gpt-oss-120b,openai/gpt-oss-20b").split(",") if m.strip()]
+    if not keys:
+        raise SystemExit("groq provider needs GROQ_API_KEY. Use --provider stub for an offline run.")
+    return [GroqProvider(lane=(m, ki)) for ki in range(len(keys)) for m in models]
 
 
 class StubGroq:

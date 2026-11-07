@@ -19,7 +19,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 from discovery import census as CS, tagcheck as TC, dashboard as DB, search as SE, dedupe as D, ground as G, harvest as H, rank as R, screen as S, seeds, tag as T, verify as V
-from discovery.groq_client import make_groq, GroqProvider
+from discovery.groq_client import make_groq, make_lanes, GroqProvider
 from run import _load_dotenv
 
 
@@ -50,7 +50,15 @@ def cmd_harvest(args) -> None:
     o = out_dir(args.provider)
     queries = seeds.build_queries()
     cache = os.path.join(o, "cache")
-    stats = H.harvest(make_groq(args.provider), queries, cache, limit=args.limit, max_tokens=args.max_tokens)
+    if args.provider == "live" and not args.sequential and not args.limit:
+        lanes = make_lanes()
+        print(f"harvesting on {len(lanes)} lanes in parallel (one per model and key): "
+              + ", ".join(f"{l.lane[0].split('/')[-1]}/key{l.lane[1] + 1}" for l in lanes))
+        stats = H.harvest_parallel(lanes, queries, cache, max_tokens=args.max_tokens)
+        if stats["tokens"]:
+            stats["tokens_by_lane"] = {f"{l.lane[0].split('/')[-1]}/key{l.lane[1] + 1}": l.tokens_used for l in lanes}
+    else:
+        stats = H.harvest(make_groq(args.provider), queries, cache, limit=args.limit, max_tokens=args.max_tokens)
     print(f"harvest: {stats}  (matrix size {len(queries)})")
     raw = H.load_cached(cache, queries)
     _write(os.path.join(o, "raw.json"), {"n_queries": len(queries), "candidates": raw})
@@ -81,11 +89,13 @@ def _tag_v2(args) -> None:
     rows = _latest_rows(o)
     if args.scope == "survivors":
         rows = [r for r in rows if r["screen"].get("verdict") == "SURVIVES"]
+    path = os.path.join(o, "tags_v2.json")
+    merged = _read(path) if os.path.exists(path) else {}
+    if not args.retag:                    # keep earlier answers; only tag candidates with no usable tags yet
+        rows = [r for r in rows if merged.get(r["id"], {}).get("status") != "ok"]
     if args.limit:
         rows = rows[:args.limit]
     tags = T.tag_v2(rows, args.provider)
-    path = os.path.join(o, "tags_v2.json")
-    merged = _read(path) if os.path.exists(path) else {}
     merged.update(tags)           # keep earlier results for candidates not in this run
     _write(path, merged)
     from collections import Counter
@@ -146,7 +156,10 @@ def cmd_screen(args) -> None:
 
 def cmd_ground(args) -> None:
     o = out_dir(args.provider)
-    rows = _read(os.path.join(o, "screened.json"))
+    # Start from the merged rows when they exist: a candidate can become a survivor only after its Census pool is
+    # added, and the screen file from before that step would miss it.
+    gp = os.path.join(o, "grounded.json")
+    rows = _read(gp if os.path.exists(gp) else os.path.join(o, "screened.json"))
     groq = make_groq(args.provider)
     dirs = [os.path.join(o, "cache_ground")]
     if args.pools_only:
@@ -240,6 +253,9 @@ def main(argv=None) -> int:
         if name == "tag":
             sp.add_argument("--bank", choices=("v2", "v1"), default="v2", help="v2: five decision-focused questions (default); v1: the original 15")
             sp.add_argument("--scope", choices=("survivors", "all"), default="survivors", help="v2: which candidates to tag")
+            sp.add_argument("--retag", action="store_true", help="v2: tag again even candidates that already have tags")
+        if name == "harvest":
+            sp.add_argument("--sequential", action="store_true", help="one lane at a time (the old behaviour)")
         if name in ("harvest", "ground"):
             sp.add_argument("--max-tokens", type=int, default=None,
                             help="stop a run once this many Groq tokens are used (free tier is ~200k/day per model)")
