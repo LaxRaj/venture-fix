@@ -6,6 +6,7 @@ else is routed to a named bucket instead of being guessed.
 
 from __future__ import annotations
 
+import math
 from typing import Dict, Optional
 
 DELIV_HOURS = 190.0      # delivery hrs/month at 60-80 hrs/week
@@ -15,9 +16,10 @@ CONV_STRESS = 0.001
 BAR_HR = 57.74           # $10k MRR / 173.2 h, the repo's revenue-per-hour bar
 REACH_LIMIT = 0.5        # contacting more than half the pool burns the market
 TARGET = 3000.0          # first milestone, MRR
+PRICE_FLAG = 2500.0      # monthly prices above this are flagged as unlikely for small-business buyers
 
 
-def screen(c: dict, target: float = TARGET) -> Dict[str, object]:
+def screen(c: dict, target: float = TARGET, flag: float = PRICE_FLAG) -> Dict[str, object]:
     unit, price, hrs, pool = c.get("price_unit"), c.get("price_usd"), c.get("hours_per_account_month"), c.get("pool_count")
     if unit == "contingency":
         return {"verdict": "CONTINGENCY", "why": "paid as a share of recovery; flat-price test cannot score it"}
@@ -28,9 +30,10 @@ def screen(c: dict, target: float = TARGET) -> Dict[str, object]:
         return {"verdict": "INSUFFICIENT", "why": "missing " + ", ".join(missing or ["monthly price unit"])}
 
     per_hr = price / hrs
-    accounts = target / price
+    accounts = math.ceil(target / price)   # whole customers: half a customer does not exist
     cap = DELIV_HOURS / hrs
-    row: Dict[str, object] = {"per_hr": round(per_hr, 1), "accounts": round(accounts, 1), "cap": round(cap, 1)}
+    row: Dict[str, object] = {"per_hr": round(per_hr, 1), "accounts": accounts, "cap": round(cap, 1),
+                              "price_flag": price > flag}
     for tag, conv in (("base", CONV_BASE), ("stress", CONV_STRESS)):
         contacts = accounts / conv
         row[f"contacts_{tag}"] = round(contacts)
