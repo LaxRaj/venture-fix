@@ -191,6 +191,14 @@ def test_openai_compat_provider_parses_and_stops_on_429():
         s = Store(":memory:"); s.seed_ventures([V])
         r = Fleet(s, p).run_cycle("v1")
         assert "stopped" in r and "rate limit" in r["stopped"], r  # whole cycle halts instead of failing every task
+        import http.client
+
+        def dropped(*a, **k):
+            raise http.client.RemoteDisconnected("Remote end closed connection without response")
+        llm._post_json = dropped  # regression: a dead local server must become a handled error, not a crashed cycle
+        s2 = Store(":memory:"); s2.seed_ventures([V])
+        r2 = Fleet(s2, llm.OpenAICompatProvider("http://x/v1")).run_cycle("v1")
+        assert "error" in r2, r2
     finally:
         llm._post_json, llm.time.sleep = real_post, real_sleep
 

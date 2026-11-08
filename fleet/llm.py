@@ -6,6 +6,7 @@ the QA gate rejected the output, so spend follows difficulty.
 
 from __future__ import annotations
 
+import http.client
 import json
 import os
 import re
@@ -23,6 +24,14 @@ TIERS: List[str] = [
 ]
 ORCH_MODEL = os.environ.get("FLEET_ORCH_MODEL", "claude-opus-5-5")
 JUDGE_MODEL = os.environ.get("FLEET_JUDGE_MODEL", "claude-sonnet-5-5")
+
+
+def _post(url, body, headers, timeout=60):
+    """_post_json, with dropped connections and timeouts surfaced as RuntimeError so callers retry or stop cleanly."""
+    try:
+        return _post_json(url, body, headers, timeout=timeout)
+    except (OSError, http.client.HTTPException) as exc:  # RemoteDisconnected, ConnectionReset, socket timeout
+        raise RuntimeError(f"connection to {url} failed: {type(exc).__name__}: {exc}") from exc
 
 
 @dataclass
@@ -56,7 +65,7 @@ class AnthropicProvider(Provider):
         for wait in (0, 4, 12):
             time.sleep(wait)
             try:
-                raw = _post_json(API, body, headers, timeout=120)
+                raw = _post(API, body, headers, timeout=120)
                 text = "".join(b.get("text", "") for b in raw.get("content", []) if b.get("type") == "text")
                 u = raw.get("usage", {})
                 return Reply(text, int(u.get("input_tokens", 0)), int(u.get("output_tokens", 0)), model)
@@ -88,7 +97,7 @@ class OpenAICompatProvider(Provider):
         for wait in (0, 8, 25):
             time.sleep(wait)
             try:
-                raw = _post_json(f"{self.base}/chat/completions", body, headers, timeout=300)
+                raw = _post(f"{self.base}/chat/completions", body, headers, timeout=300)
                 u = raw.get("usage") or {}
                 text = raw["choices"][0]["message"]["content"] or ""
                 return Reply(text, int(u.get("prompt_tokens", 0)), int(u.get("completion_tokens", len(text) // 4)), model)
