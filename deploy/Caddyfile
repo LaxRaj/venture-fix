@@ -1,0 +1,7 @@
+# Caddy gets and renews the HTTPS certificate automatically for FLEET_HOST.
+# Public paths (/site/<id>/ landing pages, /webhook/stripe, the login page) and the token-gated /api all go to the app,
+# which does its own authentication.
+{$FLEET_HOST} {
+	encode gzip
+	reverse_proxy 127.0.0.1:8780
+}

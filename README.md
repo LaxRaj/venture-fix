@@ -140,3 +140,67 @@ Jev run as a test of the model.
   buyer demands. That is discovered in a pilot.
 - Tell you the close rate. It reports the published range and nothing narrower.
 - Replace the calls. It ranks which numbers are worth a call.
+
+## Agent fleet (web app)
+
+```bash
+python3 fleetapp.py                      # http://127.0.0.1:8780, stub models unless ANTHROPIC_API_KEY is set
+python3 fleetapp.py --top 3 --auto 900   # cycle the top 3 ventures every 15 minutes
+python3 -I tests/test_fleet.py
+```
+
+Each venture (seeded from `ventures_seed.json`, the 15-venture shortlist) gets a team: an **orchestrator**
+(heavy model, `FLEET_ORCH_MODEL`) that plans the venture's tasks and reviews progress; **research, web
+(landing), demo, code, outreach and reply** workers that start on the cheapest tier (`FLEET_TIER0..2`,
+default haiku > sonnet > opus); and a **QA gate** (`fleet/qa.py`) that checks every output with deterministic
+rules (price shown, no fabricated proof or guarantees, opt-out line and postal address, personalised, safe code).
+Rejected output retries once with the QA feedback, then the task moves up a model tier. A model judge may add
+issues in live mode; it can never waive a deterministic one.
+
+What the agents do not do: send email, move money, or invent customers.
+- Emails sit in an **approval queue**. Approving re-runs QA on the exact text, refuses unsubscribed addresses,
+  and enforces a daily cap. With `FLEET_SMTP_HOST/USER/PASS` set they send; otherwise they are written to
+  `runs/outbox/*.eml`.
+- Revenue enters the ledger only from a signature-verified Stripe webhook (`POST /webhook/stripe`,
+  `STRIPE_WEBHOOK_SECRET`) or a manual entry. The landing button uses your Stripe Payment Link tagged with
+  `client_reference_id=<venture id>`.
+- Prospects are imported by you (CSV `name,company,email`); the research agent supplies the search recipes.
+
+### Hosting it online (free VM + free model APIs)
+
+Local models do not fit an 8 GB machine, so move the model to a free hosted API and the app to an always-on
+server. The app is stdlib Python + SQLite, so it needs only a small VM (Oracle Cloud Always Free ARM, or a ~$4/mo VPS).
+
+1. Create the VM (Ubuntu). Open ports 80 and 443 in the cloud firewall (Oracle: VCN security list).
+2. `sudo bash deploy/setup.sh <git-url> <branch>`. It installs Python and Caddy, creates a `fleet` user, a systemd
+   service, nightly SQLite backups, and a random admin token in `/etc/fleet.env`.
+3. Edit `/etc/fleet.env` (template: `deploy/env.example`): a Groq or Gemini key, the model ladder (list what your
+   key can use first; names and free limits change), Gmail app password, `FLEET_HOST`
+   (no domain? use `<ip-with-dashes>.sslip.io`).
+4. `systemctl enable --now fleet && systemctl restart caddy`, then open `https://<FLEET_HOST>` and sign in with the token.
+5. Stripe: add a webhook to `https://<FLEET_HOST>/webhook/stripe` for `checkout.session.completed` and put its secret in
+   `/etc/fleet.env`. Landing pages are served publicly at `https://<FLEET_HOST>/site/<venture id>/`.
+
+Security model: every `/api` route needs the admin token (`FLEET_ADMIN_TOKEN`, 16+ chars); only the page shell,
+`/site/*` and the HMAC-verified `/webhook/stripe` are public. The server refuses to start on a public address (or with
+`--require-token`) without a token. When a free tier returns HTTP 429, automatic cycles pause for an hour.
+`deploy/setup.sh` has not been run against a live server; read it first.
+
+### Running it for $0
+
+Tokens are the only real cost. Point the fleet at any OpenAI-compatible endpoint:
+
+```bash
+# Local and unlimited: install Ollama, pull three models of increasing size, then
+export FLEET_BASE_URL=http://localhost:11434/v1
+export FLEET_TIER0=<small-model> FLEET_TIER1=<mid-model> FLEET_TIER2=<largest-model-you-can-run>
+export FLEET_ORCH_MODEL=$FLEET_TIER2
+python3 fleetapp.py --provider openai --budget 2000000
+```
+
+Groq or Gemini free tiers work the same way (`FLEET_BASE_URL` + `FLEET_API_KEY`); check their current model
+names and daily limits first. When a free tier returns HTTP 429 the cycle stops and logs it rather than failing
+every task. The model judge is off for these providers (`FLEET_JUDGE=1` turns it on); the deterministic QA
+gates still run, and weaker models simply escalate and retry more often.
+Other costs stay free: host the landing page on Cloudflare Pages / Vercel Hobby, send from Gmail SMTP with an
+app password, and find prospects by hand. Stripe charges only a per-sale fee.

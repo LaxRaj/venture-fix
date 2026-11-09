@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Venture fleet</title>
+<style>
+:root{--bg:#fafaf7;--fg:#1b1b18;--mut:#6b6b63;--card:#fff;--line:#e4e2da;--ok:#1a7f4b;--bad:#b3261e;--warn:#9a6700;--acc:#1f4fd8}
+@media(prefers-color-scheme:dark){:root{--bg:#131311;--fg:#ecebe4;--mut:#9a9a90;--card:#1c1c19;--line:#33332e;--ok:#4cc38a;--bad:#ff7b72;--warn:#e3b341;--acc:#7aa2ff}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:0}h2{font-size:15px;margin:20px 0 8px}
+.top{display:flex;gap:16px;align-items:end;flex-wrap:wrap;justify-content:space-between}
+.cash{font-size:34px;font-weight:700}.mut{color:var(--mut);font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px;margin:8px 0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button{font:inherit;padding:6px 12px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--fg);cursor:pointer}
+button.p{background:var(--acc);color:#fff;border-color:var(--acc)}button:disabled{opacity:.5}
+input,textarea{font:inherit;padding:6px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--fg);width:100%}
+.tag{font-size:12px;padding:1px 7px;border-radius:10px;border:1px solid var(--line)}
+.done{color:var(--ok)}.blocked{color:var(--bad)}.waiting{color:var(--warn)}
+table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:5px 6px;border-bottom:1px solid var(--line);vertical-align:top;font-size:14px}
+pre{white-space:pre-wrap;margin:4px 0;font:13px/1.4 ui-monospace,monospace}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px}
+</style></head><body><main>
+<div id="login" class="card" style="display:none;max-width:360px;margin:40px auto"><b>Admin token</b>
+ <div class="row"><input id="tok" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"><button class="p" onclick="doLogin()">Sign in</button></div>
+ <div id="lerr" class="blocked"></div></div>
+<div class="top"><div><h1>Venture fleet</h1><div class="mut" id="meta"></div></div>
+<div><div class="mut">cash in ledger</div><div class="cash" id="cash">$0</div></div></div>
+<div class="row" style="margin-top:10px"><button class="p" id="runall">Run all active</button><span class="mut" id="run"></span></div>
+<h2>Settings (required before any email draft)</h2>
+<div class="card grid"><label>Sender name<input id="sn"></label><label>Postal address (legal requirement)<input id="sa"></label><label>Reply-to email<input id="se"></label>
+<div><button onclick="saveSettings()">Save</button></div></div>
+<h2>Ventures</h2><div id="ventures" class="grid"></div>
+<div id="detail"></div>
+</main><script>
+const $=id=>document.getElementById(id);
+const api=async(p,b)=>{const r=await fetch(p,b?{method:'POST',body:JSON.stringify(b)}:{});
+  if(r.status===401&&p!=='/login'){$('login').style.display='block';return {error:'unauthorized'}}
+  return r.json()};
+async function doLogin(){const r=await api('/login',{token:$('tok').value});
+  if(r.ok){$('login').style.display='none';$('tok').value='';load()}else $('lerr').textContent='wrong token'}
+const usd=c=>'$'+(c/100).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2});
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let cur=null, st=null;
+async function load(){
+  const next=await api('/api/state');
+  if(next.error) return;            // not logged in: the login box is showing
+  st=next;
+  $('cash').textContent=usd(st.cash_cents);
+  $('meta').textContent=`provider ${st.provider} - orchestrator ${st.models.orchestrator} - workers ${st.models.tiers.join(' > ')} - tokens ${st.tokens_today.toLocaleString()}/${st.token_budget.toLocaleString()} - emails ${st.sent_today}/${st.send_cap} today`;
+  $('run').textContent=st.running?'running...':(st.paused_until?'paused by rate limit until '+new Date(st.paused_until*1000).toLocaleTimeString():(st.last?.error?'last run errored':''));
+  $('runall').disabled=st.running;
+  if(document.activeElement.tagName!=='INPUT'){$('sn').value=st.settings.sender_name;$('sa').value=st.settings.sender_address;$('se').value=st.settings.sender_email}
+  $('ventures').innerHTML=st.ventures.map(v=>`<div class="card"><b>${esc(v.offer)}</b> <span class="tag">${v.status}</span>
+   <div class="mut">${esc(v.buyer)} - ${esc(v.price)}</div>
+   <div class="mut">${Object.entries(v.tasks).map(([k,n])=>`<span class="${k}">${n} ${k}</span>`).join(' - ')||'no plan yet'}</div>
+   <div class="mut">${v.prospects} prospects - ${v.pending_approvals} awaiting approval - ${usd(v.cash_cents)}</div>
+   <div class="row"><button onclick="open_('${v.id}')">Open</button><button onclick="toggle('${v.id}',${v.status!=='active'})">${v.status==='active'?'Park':'Activate'}</button></div></div>`).join('');
+  if(cur) renderDetail();
+}
+async function renderDetail(){
+  const d=await api('/api/venture/'+cur); const v=st.ventures.find(x=>x.id===cur);
+  const fp=cur+JSON.stringify(d)+JSON.stringify(v);   // re-render only when data changed, so typing is not wiped
+  if(fp===window._fp) return; window._fp=fp;
+  $('detail').innerHTML=`<h2>${esc(v.offer)} - ${esc(v.buyer)}</h2>
+  <div class="card"><b>1. Payment link</b> <span class="mut">Create a Stripe Payment Link for ${esc(v.price)}, paste it here. The landing page button and revenue tracking use it.</span>
+   <div class="row"><input id="pl" placeholder="https://buy.stripe.com/..." value="${esc(v.payment_link)}"><button onclick="savePL()">Save and publish page</button></div>
+   <div class="mut">Landing page served at <a href="/site/${v.id}/" target="_blank">/site/${v.id}/</a> once the landing task is accepted.</div></div>
+  <div class="card"><b>2. Prospects</b> <span class="mut">CSV lines: name,company,email (real businesses you found with the research recipes)</span>
+   <textarea id="csv" rows="3"></textarea><div class="row"><button onclick="importCsv()">Import</button><button class="p" onclick="runOne()">Run this venture</button></div></div>
+  <h2>Tasks</h2>${d.tasks.map(t=>`<div class="card"><b>${esc(t.title)}</b> <span class="tag">${t.kind}</span> <span class="${t.status}">${t.status}</span>
+   <span class="mut">start tier ${t.tier}</span> <button onclick="reset(${t.id})">Re-run</button>
+   ${t.note?`<div class="mut">${esc(t.note)}</div>`:''}
+   <div class="mut">${t.history.map(h=>`${h.ok?'pass':'fail'} on ${esc(h.model)}${h.ok?'':' ('+esc(JSON.parse(h.issues)[0]||'')+')'}`).join(' &rarr; ')}</div>
+   ${t.artifact?`<details><summary>output</summary><pre>${esc(t.artifact.body.slice(0,3000))}</pre></details>`:''}</div>`).join('')}
+  <h2>Approval queue</h2>${d.approvals.map(a=>`<div class="card"><b>${esc(a.company)}</b> &lt;${esc(a.email)}&gt; <span class="tag">${a.kind}</span> <span class="tag">${a.status}</span>
+   <div><b>${esc(a.subject)}</b></div><textarea id="ab${a.id}" rows="5" ${a.status!=='pending'?'disabled':''}>${esc(a.body)}</textarea>
+   ${a.status==='pending'?`<div class="row"><button class="p" onclick="appr(${a.id})">Approve and send</button><button onclick="rej(${a.id})">Reject</button></div>`:''}</div>`).join('')||'<div class="mut">nothing yet</div>'}
+  <h2>Prospects</h2><table>${d.prospects.map(p=>`<tr><td>${esc(p.company)}</td><td>${esc(p.email)}</td><td>${p.status}</td>
+   <td><input id="rp${p.id}" placeholder="paste their reply"><button onclick="reply(${p.id})">Log reply</button></td></tr>`).join('')}</table>
+  <h2>Revenue</h2><div class="row"><input id="rv" placeholder="dollars received" style="width:160px"><input id="rn" placeholder="note"><button onclick="rev()">Record manual payment</button></div>
+  <table>${d.ledger.map(l=>`<tr><td>${usd(l.cents)}</td><td>${l.source}</td><td>${esc(l.note)}</td><td class="mut">${new Date(l.ts*1000).toLocaleString()}</td></tr>`).join('')}</table>
+  <h2>Activity</h2>${d.events.map(e=>`<div class="mut">${new Date(e.ts*1000).toLocaleTimeString()} - ${esc(e.msg)}</div>`).join('')}`;
+}
+async function open_(id){cur=id;await renderDetail();$('detail').scrollIntoView()}
+async function toggle(id,a){await api('/api/venture/status',{venture_id:id,active:a});load()}
+async function saveSettings(){await api('/api/settings',{sender_name:$('sn').value,sender_address:$('sa').value,sender_email:$('se').value});load()}
+async function savePL(){const r=await api('/api/venture/payment_link',{venture_id:cur,link:$('pl').value});if(r.error)alert(r.error);load()}
+async function importCsv(){const r=await api('/api/prospects/import',{venture_id:cur,csv:$('csv').value});alert('imported '+r.imported);load()}
+async function runOne(){await api('/api/run',{venture_id:cur});load()}
+async function reset(id){await api('/api/task/reset',{id});load()}
+async function appr(id){const r=await api('/api/approve',{id,body:$('ab'+id).value});if(!r.ok)alert(r.message||r.error);load()}
+async function rej(id){await api('/api/approve',{id,action:'reject'});load()}
+async function reply(id){await api('/api/reply',{prospect_id:id,body:$('rp'+id).value});load()}
+async function rev(){await api('/api/revenue',{venture_id:cur,dollars:$('rv').value,note:$('rn').value});load()}
+$('runall').onclick=async()=>{await api('/api/run',{});load()};
+load();setInterval(load,4000);
+</script></body></html>
