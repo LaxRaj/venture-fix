@@ -92,7 +92,10 @@ class OpenAICompatProvider(Provider):
     def complete(self, *, model, system, user, kind, tier, max_tokens=1500, ctx=None) -> Reply:
         body = {"model": model, "max_tokens": max_tokens, "temperature": 0.3,
                 "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
-        headers = {"Authorization": f"Bearer {self.key}"} if self.key else {}
+        # Cloudflare in front of Groq rejects urllib's default agent (error 1010), so always send our own.
+        headers = {"User-Agent": "venture-fix-fleet/1.0"}
+        if self.key:
+            headers["Authorization"] = f"Bearer {self.key}"
         last: Optional[Exception] = None
         for wait in (0, 8, 25):
             time.sleep(wait)

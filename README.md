@@ -166,6 +166,26 @@ What the agents do not do: send email, move money, or invent customers.
   `client_reference_id=<venture id>`.
 - Prospects are imported by you (CSV `name,company,email`); the research agent supplies the search recipes.
 
+### Hosting it online (free VM + free model APIs)
+
+Local models do not fit an 8 GB machine, so move the model to a free hosted API and the app to an always-on
+server. The app is stdlib Python + SQLite, so it needs only a small VM (Oracle Cloud Always Free ARM, or a ~$4/mo VPS).
+
+1. Create the VM (Ubuntu). Open ports 80 and 443 in the cloud firewall (Oracle: VCN security list).
+2. `sudo bash deploy/setup.sh <git-url> <branch>`. It installs Python and Caddy, creates a `fleet` user, a systemd
+   service, nightly SQLite backups, and a random admin token in `/etc/fleet.env`.
+3. Edit `/etc/fleet.env` (template: `deploy/env.example`): a Groq or Gemini key, the model ladder (list what your
+   key can use first; names and free limits change), Gmail app password, `FLEET_HOST`
+   (no domain? use `<ip-with-dashes>.sslip.io`).
+4. `systemctl enable --now fleet && systemctl restart caddy`, then open `https://<FLEET_HOST>` and sign in with the token.
+5. Stripe: add a webhook to `https://<FLEET_HOST>/webhook/stripe` for `checkout.session.completed` and put its secret in
+   `/etc/fleet.env`. Landing pages are served publicly at `https://<FLEET_HOST>/site/<venture id>/`.
+
+Security model: every `/api` route needs the admin token (`FLEET_ADMIN_TOKEN`, 16+ chars); only the page shell,
+`/site/*` and the HMAC-verified `/webhook/stripe` are public. The server refuses to start on a public address (or with
+`--require-token`) without a token. When a free tier returns HTTP 429, automatic cycles pause for an hour.
+`deploy/setup.sh` has not been run against a live server; read it first.
+
 ### Running it for $0
 
 Tokens are the only real cost. Point the fleet at any OpenAI-compatible endpoint:

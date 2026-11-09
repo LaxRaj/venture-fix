@@ -178,10 +178,15 @@ def test_openai_compat_provider_parses_and_stops_on_429():
     real_post, real_sleep = llm._post_json, llm.time.sleep
     llm.time.sleep = lambda _s: None
     try:
-        llm._post_json = lambda url, body, headers, timeout=60: {
-            "choices": [{"message": {"content": "hello"}}], "usage": {"prompt_tokens": 7, "completion_tokens": 3}}
-        r = llm.OpenAICompatProvider("http://x/v1").complete(model="m", system="s", user="u", kind="research", tier=0)
+        seen = {}
+
+        def fake(url, body, headers, timeout=60):
+            seen.update(headers)
+            return {"choices": [{"message": {"content": "hello"}}], "usage": {"prompt_tokens": 7, "completion_tokens": 3}}
+        llm._post_json = fake
+        r = llm.OpenAICompatProvider("http://x/v1", "k").complete(model="m", system="s", user="u", kind="research", tier=0)
         assert (r.text, r.tokens_in, r.tokens_out) == ("hello", 7, 3)
+        assert seen["Authorization"] == "Bearer k" and seen["User-Agent"].startswith("venture-fix")  # Groq/Cloudflare blocks urllib's default UA
         assert llm.OpenAICompatProvider("http://x/v1").judge is False  # judge is opt-in on free providers
 
         def limited(*a, **k):
@@ -201,6 +206,106 @@ def test_openai_compat_provider_parses_and_stops_on_429():
         assert "error" in r2, r2
     finally:
         llm._post_json, llm.time.sleep = real_post, real_sleep
+
+
+def _serve(token):
+    import threading
+    from http.server import ThreadingHTTPServer
+    import fleetapp
+    s, f = fleet()
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), fleetapp.make_handler(s, f, token))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return srv, f"http://127.0.0.1:{srv.server_address[1]}"
+
+
+def _req(url, method="GET", body=None, headers=None):
+    import urllib.error
+    import urllib.request
+    r = urllib.request.Request(url, json.dumps(body).encode() if body is not None else None, headers or {}, method=method)
+    try:
+        with urllib.request.urlopen(r) as resp:
+            return resp.status, resp.read(), dict(resp.headers)
+    except urllib.error.HTTPError as e:
+        return e.code, e.read(), dict(e.headers)
+
+
+def test_api_requires_token_but_webhook_site_and_shell_stay_public():
+    import pathlib
+    tok = "x" * 24
+    money.SITE = pathlib.Path(os.environ.get("TMPDIR", "/tmp")) / f"authsite-{time.time()}"
+    (money.SITE / "v1").mkdir(parents=True)
+    (money.SITE / "v1" / "index.html").write_text("<h1>offer</h1>")
+    srv, base = _serve(tok)
+    try:
+        assert _req(base + "/api/state")[0] == 401
+        assert _req(base + "/api/venture/v1")[0] == 401
+        assert _req(base + "/api/state", headers={"Authorization": "Bearer wrong"})[0] == 401
+        assert _req(base + "/api/state", headers={"Authorization": f"Bearer {tok}"})[0] == 200
+        assert _req(base + "/api/state", headers={"Cookie": f"fleet_token={tok}"})[0] == 200
+        assert _req(base + "/api/approve", "POST", {"id": 1}, {})[0] == 401          # state-changing routes are gated too
+        assert _req(base + "/api/revenue", "POST", {"venture_id": "v1", "dollars": 5}, {})[0] == 401
+        assert s_cents(base, tok) == 0
+        assert _req(base + "/webhook/stripe", "POST", {}, {})[0] == 400              # reaches the HMAC check, not the auth wall
+        assert _req(base + "/site/v1/")[0] == 200 and _req(base + "/site/nope/")[0] == 404
+        assert _req(base + "/site/../../etc/passwd")[0] == 404
+        assert _req(base + "/")[0] == 200 and b"fleet" in _req(base + "/")[1].lower()
+        assert _req(base + "/login", "POST", {"token": "nope"})[0] == 401
+        code, _, hdr = _req(base + "/login", "POST", {"token": tok})
+        assert code == 200 and "HttpOnly" in hdr["Set-Cookie"] and "SameSite=Strict" in hdr["Set-Cookie"]
+    finally:
+        srv.shutdown()
+
+
+def s_cents(base, tok):
+    return json.loads(_req(base + "/api/state", headers={"Authorization": f"Bearer {tok}"})[1])["cash_cents"]
+
+
+def test_loopback_mode_without_token_still_works_and_public_bind_is_refused():
+    import fleetapp
+    srv, base = _serve("")
+    try:
+        assert _req(base + "/api/state")[0] == 200
+    finally:
+        srv.shutdown()
+    old_argv, old_tok = sys.argv, os.environ.pop("FLEET_ADMIN_TOKEN", None)
+    try:
+        for tok in (None, "short"):
+            if tok:
+                os.environ["FLEET_ADMIN_TOKEN"] = tok
+            sys.argv = ["fleetapp.py", "--host", "0.0.0.0", "--db", ":memory:"]
+            try:
+                fleetapp.main()
+                raise AssertionError("public bind without a strong token must exit")
+            except SystemExit as e:
+                assert "FLEET_ADMIN_TOKEN" in str(e)
+        sys.argv = ["fleetapp.py", "--require-token", "--db", ":memory:"]  # loopback bind behind a proxy still needs a token
+        try:
+            fleetapp.main()
+            raise AssertionError("--require-token without a token must exit")
+        except SystemExit as e:
+            assert "FLEET_ADMIN_TOKEN" in str(e)
+    finally:
+        sys.argv = old_argv
+        os.environ.pop("FLEET_ADMIN_TOKEN", None)
+        if old_tok:
+            os.environ["FLEET_ADMIN_TOKEN"] = old_tok
+
+
+def test_rate_limit_pauses_automatic_cycles():
+    import fleetapp
+
+    class Limited:
+        def run_all(self):
+            return [{"venture": "v1", "stopped": "provider rate limit: HTTP 429"}]
+
+    fleetapp.STATE["paused_until"] = 0.0
+    assert fleetapp.run_async(Limited(), None)
+    for _ in range(100):
+        if not fleetapp.RUN_LOCK.locked():
+            break
+        time.sleep(0.02)
+    assert fleetapp.STATE["paused_until"] > time.time() + 3000, fleetapp.STATE
+    fleetapp.STATE["paused_until"] = 0.0
 
 
 if __name__ == "__main__":

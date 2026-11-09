@@ -8,7 +8,9 @@
 from __future__ import annotations
 
 import argparse
+import hmac
 import json
+import os
 import threading
 import time
 import traceback
@@ -24,7 +26,17 @@ from fleet.store import Store
 ROOT = Path(__file__).resolve().parent
 PAGE = ROOT / "web" / "fleet.html"
 RUN_LOCK = threading.Lock()
-STATE = {"running": False, "last": None}
+STATE = {"running": False, "last": None, "paused_until": 0.0}
+PAUSE_SECONDS = 3600  # after a provider rate limit / token budget stop, automatic cycles wait this long
+PUBLIC_GET = ("/site/",)  # landing pages are meant for the world; "/" is only the (data-free) page shell
+
+
+def is_loopback(host: str) -> bool:
+    return host in ("127.0.0.1", "localhost", "::1")
+
+
+def token_ok(supplied: str, expected: str) -> bool:
+    return bool(expected) and bool(supplied) and hmac.compare_digest(supplied.encode(), expected.encode())
 
 
 def load_seed(store: Store, top: int) -> None:
@@ -50,6 +62,7 @@ def overview(s: Store, fleet: Fleet) -> dict:
     return {"ventures": vs, "provider": fleet.p.name, "models": {"orchestrator": ORCH_MODEL, "tiers": TIERS},
             "tokens_today": s.tokens_today(), "token_budget": fleet.budget, "sent_today": money.sent_today(s),
             "send_cap": money.DAILY_SEND_CAP, "running": STATE["running"], "last": STATE["last"],
+            "paused_until": STATE["paused_until"] if STATE["paused_until"] > time.time() else 0,
             "cash_cents": sum(v["cash_cents"] for v in vs),
             "settings": {k: s.setting(k) for k in ("sender_name", "sender_address", "sender_email")}}
 
@@ -76,6 +89,8 @@ def run_async(fleet: Fleet, vid: str | None) -> bool:
         try:
             res = [fleet.run_cycle(vid)] if vid else fleet.run_all()
             STATE["last"] = {"at": time.time(), "result": res}
+            if any(r.get("stopped") for r in res):  # free tier or token budget exhausted: let automatic cycles back off
+                STATE["paused_until"] = time.time() + PAUSE_SECONDS
         except Exception:  # noqa: BLE001
             STATE["last"] = {"at": time.time(), "error": traceback.format_exc(limit=3)}
         finally:
@@ -86,14 +101,29 @@ def run_async(fleet: Fleet, vid: str | None) -> bool:
     return True
 
 
-def make_handler(s: Store, fleet: Fleet):
+def make_handler(s: Store, fleet: Fleet, admin_token: str = ""):
     class H(BaseHTTPRequestHandler):
         def log_message(self, *a) -> None:  # noqa: D401
             pass
 
-        def _send(self, payload, status=200, ctype="application/json") -> None:
+        def _authed(self) -> bool:
+            """No token configured means loopback-only mode (main() refuses a public bind without one)."""
+            if not admin_token:
+                return True
+            bearer = self.headers.get("Authorization", "")
+            if bearer.startswith("Bearer ") and token_ok(bearer[7:], admin_token):
+                return True
+            for part in self.headers.get("Cookie", "").split(";"):
+                k, _, v = part.strip().partition("=")
+                if k == "fleet_token" and token_ok(v, admin_token):
+                    return True
+            return False
+
+        def _send(self, payload, status=200, ctype="application/json", headers=()) -> None:
             data = payload if isinstance(payload, bytes) else json.dumps(payload).encode()
             self.send_response(status)
+            for k, v in headers:
+                self.send_header(k, v)
             self.send_header("Content-Type", ctype + ("; charset=utf-8" if "text" in ctype else ""))
             self.send_header("Content-Length", str(len(data)))
             self.end_headers()
@@ -103,14 +133,18 @@ def make_handler(s: Store, fleet: Fleet):
             path = urlparse(self.path).path
             if path in ("/", "/index.html"):
                 return self._send(PAGE.read_bytes(), ctype="text/html")
+            if path.startswith("/site/"):
+                parts = path.split("/")
+                f = money.SITE / (parts[2] if len(parts) > 2 else "") / "index.html"
+                if f.resolve().parent.parent == money.SITE.resolve() and f.exists():
+                    return self._send(f.read_bytes(), ctype="text/html")
+                return self._send({"error": "not found"}, 404)
+            if not self._authed():
+                return self._send({"error": "unauthorized"}, 401)
             if path == "/api/state":
                 return self._send(overview(s, fleet))
             if path.startswith("/api/venture/"):
                 return self._send(detail(s, path.rsplit("/", 1)[1]))
-            if path.startswith("/site/"):
-                f = money.SITE / path.split("/")[2] / "index.html"
-                if f.resolve().parent.parent == money.SITE.resolve() and f.exists():
-                    return self._send(f.read_bytes(), ctype="text/html")
             self._send({"error": "not found"}, 404)
 
         def do_POST(self) -> None:  # noqa: N802
@@ -123,6 +157,14 @@ def make_handler(s: Store, fleet: Fleet):
                 b = json.loads(raw or b"{}")
             except ValueError:
                 return self._send({"error": "bad json"}, 400)
+            if path == "/login":
+                if not token_ok(str(b.get("token", "")), admin_token):
+                    return self._send({"error": "wrong token"}, 401)
+                secure = "; Secure" if self.headers.get("X-Forwarded-Proto") == "https" else ""
+                cookie = f"fleet_token={admin_token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=2592000{secure}"
+                return self._send({"ok": True}, headers=[("Set-Cookie", cookie)])
+            if not self._authed():
+                return self._send({"error": "unauthorized"}, 401)
             try:
                 self._send(self.route(path, b))
             except Exception as exc:  # noqa: BLE001
@@ -171,6 +213,9 @@ def make_handler(s: Store, fleet: Fleet):
 
 def main() -> None:
     ap = argparse.ArgumentParser()
+    ap.add_argument("--host", default="127.0.0.1", help="use 0.0.0.0 only with FLEET_ADMIN_TOKEN set (put Caddy in front for HTTPS)")
+    ap.add_argument("--require-token", action="store_true",
+                    help="exit unless FLEET_ADMIN_TOKEN is set; use behind a reverse proxy, where the bind is loopback but the world can reach it")
     ap.add_argument("--port", type=int, default=8780)
     ap.add_argument("--db", default=str(ROOT / "runs" / "fleet.db"))
     ap.add_argument("--provider", choices=["anthropic", "openai", "stub"],
@@ -184,17 +229,22 @@ def main() -> None:
         _load_dotenv()
     except Exception:  # noqa: BLE001
         pass
+    token = os.environ.get("FLEET_ADMIN_TOKEN", "")
+    if (a.require_token or not is_loopback(a.host)) and len(token) < 16:
+        raise SystemExit("refusing to listen on a public address without FLEET_ADMIN_TOKEN (16+ characters): "
+                         "every /api route can approve emails and record revenue")
     s = Store(a.db)
     load_seed(s, a.top)
     fleet = Fleet(s, make_provider(a.provider), token_budget=a.budget)
     if a.auto:
         def loop() -> None:
             while True:
-                run_async(fleet, None)
+                if time.time() >= STATE["paused_until"]:  # backing off after a rate limit
+                    run_async(fleet, None)
                 time.sleep(a.auto)
         threading.Thread(target=loop, daemon=True).start()
-    srv = ThreadingHTTPServer(("127.0.0.1", a.port), make_handler(s, fleet))
-    print(f"fleet on http://127.0.0.1:{a.port}  provider={fleet.p.name}  orchestrator={ORCH_MODEL}  tiers={TIERS}")
+    srv = ThreadingHTTPServer((a.host, a.port), make_handler(s, fleet, token))
+    print(f"fleet on http://{a.host}:{a.port}  provider={fleet.p.name}  orchestrator={ORCH_MODEL}  tiers={TIERS}  auth={'token' if token else 'none (loopback)'}")
     srv.serve_forever()
 
 

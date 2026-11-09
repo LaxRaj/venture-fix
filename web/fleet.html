@@ -20,6 +20,9 @@ table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:5px 6px;
 pre{white-space:pre-wrap;margin:4px 0;font:13px/1.4 ui-monospace,monospace}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px}
 </style></head><body><main>
+<div id="login" class="card" style="display:none;max-width:360px;margin:40px auto"><b>Admin token</b>
+ <div class="row"><input id="tok" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"><button class="p" onclick="doLogin()">Sign in</button></div>
+ <div id="lerr" class="blocked"></div></div>
 <div class="top"><div><h1>Venture fleet</h1><div class="mut" id="meta"></div></div>
 <div><div class="mut">cash in ledger</div><div class="cash" id="cash">$0</div></div></div>
 <div class="row" style="margin-top:10px"><button class="p" id="runall">Run all active</button><span class="mut" id="run"></span></div>
@@ -30,15 +33,21 @@ pre{white-space:pre-wrap;margin:4px 0;font:13px/1.4 ui-monospace,monospace}
 <div id="detail"></div>
 </main><script>
 const $=id=>document.getElementById(id);
-const api=(p,b)=>fetch(p,b?{method:'POST',body:JSON.stringify(b)}:{}).then(r=>r.json());
+const api=async(p,b)=>{const r=await fetch(p,b?{method:'POST',body:JSON.stringify(b)}:{});
+  if(r.status===401&&p!=='/login'){$('login').style.display='block';return {error:'unauthorized'}}
+  return r.json()};
+async function doLogin(){const r=await api('/login',{token:$('tok').value});
+  if(r.ok){$('login').style.display='none';$('tok').value='';load()}else $('lerr').textContent='wrong token'}
 const usd=c=>'$'+(c/100).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2});
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let cur=null, st=null;
 async function load(){
-  st=await api('/api/state');
+  const next=await api('/api/state');
+  if(next.error) return;            // not logged in: the login box is showing
+  st=next;
   $('cash').textContent=usd(st.cash_cents);
   $('meta').textContent=`provider ${st.provider} - orchestrator ${st.models.orchestrator} - workers ${st.models.tiers.join(' > ')} - tokens ${st.tokens_today.toLocaleString()}/${st.token_budget.toLocaleString()} - emails ${st.sent_today}/${st.send_cap} today`;
-  $('run').textContent=st.running?'running...':(st.last?.error?'last run errored':'');
+  $('run').textContent=st.running?'running...':(st.paused_until?'paused by rate limit until '+new Date(st.paused_until*1000).toLocaleTimeString():(st.last?.error?'last run errored':''));
   $('runall').disabled=st.running;
   if(document.activeElement.tagName!=='INPUT'){$('sn').value=st.settings.sender_name;$('sa').value=st.settings.sender_address;$('se').value=st.settings.sender_email}
   $('ventures').innerHTML=st.ventures.map(v=>`<div class="card"><b>${esc(v.offer)}</b> <span class="tag">${v.status}</span>
