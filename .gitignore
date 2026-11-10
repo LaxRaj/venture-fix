@@ -11,3 +11,6 @@ __pycache__/
 # discovery run outputs (live runs may contain API-derived data)
 discovery/out/
 discovery/out_stub/
+
+# private go-to-market pages (contain prospect contact data)
+analysis/playbooks/
