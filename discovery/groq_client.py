@@ -243,6 +243,16 @@ class StubGroq:
         return out
 
     def complete(self, prompt: str, max_out: int = 600) -> str:
+        if prompt.startswith("MATCH CHECK"):
+            return json.dumps({"answer": "yes"})
+        if prompt.startswith("VENDORS."):
+            vendors = []
+            for m in re.finditer(r"\[(\d+)\] [^|]*\| ([^(]*?\$(\d+)[^(]*?)\s*\(", prompt):
+                vendors.append({"vendor": f"STUB vendor {m.group(1)}", "source_index": int(m.group(1)),
+                                "quote": re.search(r"[^.]*\$\d+[^.]*", m.group(2)).group(0).strip(),
+                                "price_usd": int(m.group(3)), "price_unit": "month", "price_kind": "vendor_fee",
+                                "audience": "small_business", "same_service": True})
+            return json.dumps({"vendors": vendors})
         if "purchase in a single month" in prompt:
             return json.dumps({"units_per_month": 6, "unit_name": "unit", "basis": "STUB volume guess"})
         m = re.search(r"\[(\d+)\] [^|]*\| ([^(]*?\$(\d+)[^(]*?)\s*\(", prompt)

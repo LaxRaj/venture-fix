@@ -12,7 +12,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-app
 main{max-width:1180px;margin:0 auto;padding:16px}
 h1{font-size:22px;margin:8px 0 2px}h2{font-size:17px;margin:0 0 8px}h3{font-size:14px;margin:12px 0 4px}
 p{margin:4px 0}.mute{color:var(--mute)}.small{font-size:13px}
-section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin:14px 0}
+section,article.topsec{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin:14px 0}
 .badges{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
 .badge{padding:3px 10px;border-radius:999px;font-size:12.5px;border:1px solid var(--line);background:var(--neubg);color:var(--neu)}
 .badge.warn{background:var(--warnbg);color:var(--warn);border-color:var(--warn)}
@@ -49,6 +49,13 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 svg text{fill:var(--mute);font-size:11px}svg .pt{cursor:pointer}svg .pt:hover{stroke:var(--ink);stroke-width:2}
 .wrapx{overflow-x:auto}
 a{color:var(--accent)}
+.sc{display:flex;height:12px;border-radius:3px;overflow:hidden;background:var(--neubg);margin:4px 0}.sc i{display:block;height:100%}
+.sc .proof{background:#17724a}.sc .money{background:#1f5f8b}.sc .reach{background:#8a5a00}.sc .fit{background:#7a5aa6}
+.lg{font-size:12px;color:var(--mute)}.lg b{font-weight:600}
+.t-Proven{background:var(--okbg);color:var(--ok)}.t-Partial{background:var(--warnbg);color:var(--warn)}
+.pick{border-color:var(--ok);border-width:2px}
+.m{background:var(--okbg);color:var(--ok)}.g{background:var(--warnbg);color:var(--warn)}
+.vq{margin:2px 0;font-size:13px}
 .empty{padding:14px;border:1px dashed var(--line);border-radius:8px;color:var(--mute)}
 @media (max-width:640px){.funnel .row{grid-template-columns:120px 1fr 50px}main{padding:10px}}
 </style>
@@ -405,6 +412,35 @@ function jevSection() {
   return box;
 }
 
+function topCard(e, picked, rank) {
+  const bar = h("div", {class: "sc", role: "img", "aria-label": "score parts"}, ["proof", "money", "reach", "fit"].map(k => h("i", {class: k, style: "width:" + e.parts[k] + "%", title: k + " " + e.parts[k] + " of " + DATA.top.params.points[k]})));
+  const vend = e.vendors.length ? e.vendors.map(v => h("p", {class: "vq"}, isHttp(v.url) ? h("a", {href: v.url, target: "_blank", rel: "noopener noreferrer"}, v.vendor) : v.vendor, ": \"" + v.quote + "\"")) : h("p", {class: "small mute"}, "No other vendor with a quoted price was found.");
+  return h("div", {class: "card" + (picked ? " pick" : "")},
+    h("div", null, h("b", null, (picked ? "\u2605 " : "") + "#" + rank + " " + e.offer), " ", tag("t-" + e.label, e.label), " ", h("span", {class: "mono"}, "score " + e.score)),
+    h("p", {class: "small mute"}, "Buyer: " + e.buyer + (e.sector ? " (" + e.sector + ")" : "")),
+    bar,
+    h("div", {class: "lg"}, h("b", null, "proof "), e.parts.proof, " | ", h("b", null, "money "), e.parts.money, " | ", h("b", null, "reach "), e.parts.reach, " | ", h("b", null, "fit "), e.parts.fit),
+    h("p", {class: "small"}, "Lowest proven price ", h("b", null, money(e.price_low) + "/" + e.price_unit), e.price_median != null ? " (median " + money(e.price_median) + ")" : "", ". Pessimistic case: ",
+      h("b", null, "$" + num(e.cons.per_hr, 0) + "/hr"), ", ", e.cons.accounts, " accounts for $3k, ", num(e.cons.weeks_stress, 0), " weeks at stress conversion. Same-service check: ", e.match, "."),
+    h("div", null, h("span", {class: "small"}, "Already charging (" + e.n_vendors + "):"), vend),
+    h("p", {class: "small"}, e.measured.map(x => h("span", {class: "tag m"}, "measured: " + x)), " ", e.guessed.map(x => h("span", {class: "tag g"}, "guessed: " + x))),
+    picked ? h("div", {class: "small"}, h("p", null, h("b", null, "Test: "), e.test), h("p", null, h("b", null, "Kill rule: "), e.kill)) : null);
+}
+function topSection() {
+  const T = DATA.top;
+  const box = h("article", {class: "topsec"}, h("h2", null, "Top " + (T ? T.top.length : 20) + " and the " + (T ? T.picks.length : 7) + " to start"));
+  if (!T) {
+    box.append(h("div", {class: "empty"}, "Not built yet. Run `python3 discover.py prove --provider live`, then `top`, then `dashboard`."));
+    return box;
+  }
+  const c = T.counts;
+  box.append(h("p", {class: "small"}, c.proven_in_top + " of " + T.top.length + " are Proven (same service confirmed, two or more independent vendors with a quoted price, still survives with the lowest proven price, double the hours and half the volume). The rest are Partial. Hours and volume are still guesses; nothing here forecasts revenue."));
+  if (c.picked < 7) box.append(h("p", {class: "small fail"}, "Only " + c.picked + " Proven candidates passed the pick rules, so only " + c.picked + " are starred. The list is not padded."));
+  box.append(h("p", {class: "small"}, "Outreach load for the " + T.picks.length + " starred tests (" + T.params.test_contacts + " contacts each): ",
+    T.load.map(x => x.per_week + "/week = " + x.weeks + " weeks").join("; "), "."));
+  T.top.forEach((e, i) => box.append(topCard(e, T.picks.includes(e.id), i + 1)));
+  return box;
+}
 function view() {
   const frag = document.createDocumentFragment();
   frag.append(
@@ -433,7 +469,7 @@ function build() {
   if (DATA.stub) flags.push(h("span", {class: "badge warn"}, "STUB RUN: all numbers are synthetic"));
   if (DATA.preview) flags.push(h("span", {class: "badge warn"}, "Preview: run dedupe to save clustering"));
   if (DATA.queries_done < DATA.queries_total) flags.push(h("span", {class: "badge warn"}, "Partial run: " + DATA.queries_done + "/" + DATA.queries_total + " queries"));
-  app.replaceChildren(h("h1", null, "Venture discovery results"), h("p", {class: "mute"}, "Groq proposes, the arithmetic screen decides, Jev tags, cited pages grade the evidence."), h("div", {class: "badges"}, flags), view());
+  app.replaceChildren(h("h1", null, "Venture discovery results"), h("p", {class: "mute"}, "Groq proposes, the arithmetic screen decides, Jev tags, cited pages grade the evidence."), h("div", {class: "badges"}, flags), topSection(), view());
 }
 function refresh(scroll) {
   const app = $("#app");

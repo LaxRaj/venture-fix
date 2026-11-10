@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Venture discovery CLI: harvest -> dedupe -> tag -> screen -> ground -> verify -> report.
+"""Venture discovery CLI: harvest -> dedupe -> tag -> screen -> ground -> verify -> prove -> top -> report.
 
 harvest brainstorms without web search (numbers are guesses); ground then searches the web for the
 best survivors only, replacing guessed price/pool with cited figures.
@@ -18,7 +18,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-from discovery import volume as VOL, census as CS, tagcheck as TC, dashboard as DB, search as SE, dedupe as D, ground as G, harvest as H, rank as R, screen as S, seeds, tag as T, verify as V
+from discovery import prove as PV, top as TOP, volume as VOL, census as CS, tagcheck as TC, dashboard as DB, search as SE, dedupe as D, ground as G, harvest as H, rank as R, screen as S, seeds, tag as T, verify as V
 from discovery.groq_client import make_groq, make_lanes, GroqProvider
 from run import _load_dotenv
 
@@ -257,6 +257,40 @@ def cmd_report(args) -> None:
     print(f"wrote {os.path.relpath(dest, HERE)}")
 
 
+def _gated_rows(o: str):
+    """verified rows with the Jev gate applied: the input to prove and top."""
+    rows = _read(os.path.join(o, "verified.json"))
+    p2, pc = os.path.join(o, "tags_v2.json"), os.path.join(o, "tagcheck.json")
+    trusted = TC.trusted(_read(pc) if os.path.exists(pc) else None)
+    return R.apply_jev_gate(rows, _read(p2) if os.path.exists(p2) else {}, trusted), trusted
+
+
+def cmd_prove(args) -> None:
+    o = out_dir(args.provider)
+    rows, _ = _gated_rows(o)
+    todo = PV.eligible(rows)
+    print(f"{len(todo)} survivors are eligible for the proof search (stress-surviving, cited price, not removed by Jev)")
+    search = SE.make_search(args.provider, os.path.join(o, "cache_search"), args.max_searches)
+    stats = PV.prove_all(make_groq(args.provider), search, rows, os.path.join(o, "cache_prove"))
+    print(f"prove: {stats}")
+
+
+def cmd_top(args) -> None:
+    o = out_dir(args.provider)
+    rows, trusted = _gated_rows(o)
+    rows = PV.apply_cached(rows, os.path.join(o, "cache_prove"))
+    n = sum(1 for r in rows if r.get("proof"))
+    if not n:
+        raise SystemExit("no proof yet; run `prove` first")
+    result = TOP.build(rows, trusted)
+    _write(os.path.join(o, "top.json"), result)
+    dest = os.path.join(HERE, "analysis", "venture_top20_stub.md" if args.provider == "stub" else "venture_top20.md")
+    with open(dest, "w", encoding="utf-8") as fh:
+        fh.write(TOP.markdown(result, args.provider == "stub"))
+    print(f"{n} proved rows; counts {result['counts']}")
+    print(f"wrote {os.path.relpath(dest, HERE)} and {os.path.relpath(os.path.join(o, 'top.json'), HERE)}")
+
+
 def cmd_dashboard(args) -> None:
     path = DB.build(out_dir(args.provider), stub=args.provider == "stub")
     print(f"wrote {os.path.relpath(path, HERE)}  (open it in a browser; no server needed)")
@@ -299,6 +333,13 @@ def main(argv=None) -> int:
     vp.add_argument("--limit", type=int, default=None, help="smoke test: only this many new candidates")
     vp.add_argument("--max-tokens", type=int, default=None)
     vp.set_defaults(fn=cmd_volume)
+    pp = sub.add_parser("prove", help="find real vendors already charging for each survivor's service (cached; capped paid searches)")
+    pp.add_argument("--provider", choices=("live", "stub"), default="stub")
+    pp.add_argument("--max-searches", type=int, default=200, help="cap on paid search calls this run")
+    pp.set_defaults(fn=cmd_prove)
+    tp = sub.add_parser("top", help="score proved survivors, write the top 20 and the 7 picks")
+    tp.add_argument("--provider", choices=("live", "stub"), default="stub")
+    tp.set_defaults(fn=cmd_top)
     tc = sub.add_parser("tagcheck", help="quality-check the Jev question bank: offline coverage, then --run on the gold set")
     tc.add_argument("--provider", choices=("live", "stub"), default="stub")
     tc.add_argument("--run", action="store_true", help="send the gold set to Jev (two shuffled runs each)")

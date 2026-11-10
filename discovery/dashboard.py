@@ -119,6 +119,7 @@ def collect(out_dir: str, stub: bool) -> Dict[str, object]:
                    "stress": S.CONV_STRESS, "bar": S.BAR_HR, "reach": S.REACH_LIMIT, "flag": S.PRICE_FLAG},
         "questions": {q.id: {"text": q.text, "family": q.family} for q in ADMITTED},
         "jev": jev,
+        "top": _read(os.path.join(out_dir, "top.json")),
     }
 
 

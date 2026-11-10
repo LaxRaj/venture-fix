@@ -9,7 +9,7 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from discovery import volume as VOL, questions_v2 as Q2, tagcheck as TC, census as CS, extract as X, search as SE, dashboard as DB, dedupe as D, ground as G, harvest as H, rank as R, screen as S, seeds, tag as T, verify as V
+from discovery import prove as PV, top as TOP, volume as VOL, questions_v2 as Q2, tagcheck as TC, census as CS, extract as X, search as SE, dashboard as DB, dedupe as D, ground as G, harvest as H, rank as R, screen as S, seeds, tag as T, verify as V
 from discovery.groq_client import make_lanes, StubGroq, extract_json_list, extract_json_object, GroqProvider, DailyLimit, wait_seconds
 
 
@@ -920,6 +920,136 @@ def test_end_to_end_stub() -> None:
                 r["verify"] = V.grade(r, V.stub_fetch)
         text = R.report(rows, len(qs), len(raw), D.saturation(unique, len(qs)), stub=True)
         assert "STUB RUN" in text and "## Shortlist" in text
+
+
+def _results(*items):
+    return [{"title": t, "snippet": sn, "url": u} for t, sn, u in items]
+
+
+def test_prove_vendors_need_a_literal_quote_and_distinct_hosts() -> None:
+    res = _results(("A", "Plans cost $900 per month for clinics.", "https://www.a.com/p"),
+                   ("A2", "Our price is $950 per month for clinics.", "https://a.com/q"),
+                   ("B", "Pricing: $700 per month flat.", "https://b.com/p"),
+                   ("C", "Ads cost $5,000 per month.", "https://c.com/p"))
+
+    def v(i, quote, price, same=True, kind="vendor_fee"):
+        return {"vendor": f"v{i}", "source_index": i, "quote": quote, "price_usd": price, "price_unit": "month",
+                "price_kind": kind, "audience": "small_business", "same_service": same}
+    found = {"vendors": [v(0, "Plans cost $900 per month", 900), v(1, "Our price is $950 per month", 950),   # same host as 0
+                         v(2, "Pricing: $999 per month flat.", 999),                                          # quote not in result
+                         v(2, "Pricing: $700 per month flat.", 700, same=False),                              # different service
+                         v(3, "Ads cost $5,000 per month", 5000, kind="ad_spend")]}                           # not a vendor fee
+    out = PV.parse_vendors(found, res)
+    assert [x["host"] for x in out] == ["a.com"] and out[0]["price"] == 900.0
+    found["vendors"].append(v(2, "Pricing: $700 per month flat.", 700))
+    assert {x["host"] for x in PV.parse_vendors(found, res)} == {"a.com", "b.com"}
+    assert PV.parse_vendors(None, res) == [] and PV.parse_vendors({"vendors": "x"}, res) == []
+
+
+def test_prove_names_the_service_gate() -> None:
+    assert PV.names_the_service("Standard Service Proposal Pack", "Physical therapy marketing agency pricing runs $1,500 per month") is False
+    assert PV.names_the_service("Pitch Deck Drafting", "A full pitch deck service package starts from $6,000") is True
+    assert PV.names_the_service("Service Pack", "anything") is True                       # only generic words: nothing to demand
+    res = _results(("PT marketing pricing", "Physical therapy marketing plans $1495 /month.", "https://a.com/p"))
+    found = {"vendors": [{"vendor": "a", "source_index": 0, "quote": "plans $1495 /month", "price_usd": 1495, "price_unit": "month",
+                          "price_kind": "vendor_fee", "audience": "small_business", "same_service": True}]}
+    assert PV.parse_vendors(found, res, "Standard Service Proposal Pack") == []          # the model said yes; the text does not name it
+    assert len(PV.parse_vendors(found, res, "Physical therapy marketing plans")) == 1
+    r = {"offer": "Standard Service Proposal Pack", "buyer": "b", "evidence_quote": "marketing agency pricing $1,500", "price_url": "https://a.com"}
+    assert PV.judge_match(lambda p: '{"answer": "yes"}', r) == "unclear"                  # own quote fails the floor: model never asked
+
+
+def test_prove_match_disagreement_is_unclear() -> None:
+    r = {"offer": "o", "buyer": "b", "evidence_quote": "From $500 per month", "price_url": "https://a.com"}
+    assert PV.judge_match(lambda p: '{"answer": "yes"}', r) == "yes"
+    calls = []
+
+    def flip(p):
+        calls.append(p)
+        return '{"answer": "%s"}' % ("yes" if len(calls) == 1 else "no")
+    assert PV.judge_match(flip, r) == "unclear"
+    assert PV.judge_match(lambda p: "not json", r) == "unclear"
+    assert PV.judge_match(lambda p: '{"answer": "yes"}', dict(r, evidence_quote=None)) == "unclear"
+    opts = [p.split("Options, in this order: ")[1].split(". Reply")[0] for p in calls]
+    assert len(set(opts)) == 2                      # the second run saw a different option order
+
+
+def _proved(offer, n, match="yes", sector="s", price=300.0, hours=1.0, **kw):
+    r = cand(offer, id="id_" + offer, sector=sector, price_usd=price, hours_per_account_month=hours,
+             grounded_fields=["price"], evidence_quote="x", price_url="https://x.com", pool_basis="census", **kw)
+    r["screen"] = S.screen(r)
+    vendors = [{"vendor": f"v{i}", "host": f"h{i}.com", "url": f"https://h{i}.com", "quote": "q", "price": price, "unit": "month", "basis": "as quoted"} for i in range(n)]
+    r["proof"] = PV.summarize(r, vendors, match)
+    return r
+
+
+def test_top_conservative_screen_score_label_and_order() -> None:
+    ok = _proved("alpha one", 4)
+    assert TOP.conservative(ok) is not None
+    cheap = _proved("beta two", 3, price=60.0)                        # $60/mo at 2 h is $30/hr: fails the bar once hours double
+    assert TOP.conservative(cheap) is None
+    low = _proved("gamma three", 2)
+    low["proof"]["price_low"] = 60.0                                   # a proven vendor charges far less: the screen uses it
+    assert TOP.conservative(low) is None
+    parts = TOP.score(ok, TOP.conservative(ok), set())
+    assert set(parts) == {"proof", "money", "reach", "fit"} and all(0 <= parts[k] <= TOP.POINTS[k] for k in parts)
+    assert parts["proof"] == 32.0                                     # 4 of 5 vendors, match yes
+    unclear = _proved("delta four", 5, match="unclear")
+    assert TOP.score(unclear, TOP.conservative(unclear), set())["proof"] == 20.0
+    no = _proved("eps five", 9, match="no")
+    assert TOP.score(no, TOP.conservative(no), set())["proof"] == 0.0
+    assert TOP.label(ok) == "Proven" and TOP.label(_proved("zeta six", 1)) == "Partial" and TOP.label(unclear) == "Partial"
+    res = TOP.build([ok, unclear, cheap, low, _proved("zeta six", 1), cand("no proof", id="np")], set())
+    labels = [e["label"] for e in res["top"]]
+    assert labels == sorted(labels, key=lambda x: x != "Proven")      # Proven always before Partial
+    assert {e["offer"] for e in res["top"]} == {"alpha one", "delta four", "zeta six"}
+
+
+def test_top_picks_respect_sector_cap_duplicates_and_never_pad() -> None:
+    names = ["quartz harbor", "violet meadow", "copper lantern", "silver orchard", "amber glacier", "ivory canyon", "cobalt prairie", "jade summit", "onyx lagoon"]
+    rows = [_proved(n, 3, sector="same" if i < 4 else f"sec{i}") for i, n in enumerate(names)]
+    rows.append(_proved("quartz harbor service", 3, sector="sec99"))     # near-duplicate of the first
+    res = TOP.build(rows, set())
+    sectors = [next(r["sector"] for r in rows if r["id"] == pid) for pid in res["picks"]]
+    assert len(res["picks"]) == TOP.PICK_N and max(sectors.count(x) for x in set(sectors)) <= TOP.PER_SECTOR
+    assert not ({"id_quartz harbor", "id_quartz harbor service"} <= set(res["picks"]))
+    few = TOP.build([_proved("only one", 3), _proved("only partial", 1)], set())
+    assert few["picks"] == ["id_only one"] and few["counts"]["picked"] == 1       # not padded with the Partial
+    assert "Only 1 Proven" in TOP.markdown(few, False)
+    assert [x["weeks"] for x in res["load"]] == [-(-len(res["picks"]) * TOP.TEST_CONTACTS // w) for w in TOP.LOADS]
+
+
+def test_prove_all_caches_resumes_and_stops_on_the_search_cap() -> None:
+    rows = [_proved("one", 0), _proved("two", 0), _proved("three", 0)]
+    for r in rows:
+        r.pop("proof")
+        r["evidence_quote"] = f"{r['offer']} from $300 per month"      # names the service, so the floor lets the model answer
+        r["screen"]["survives_stress"] = True
+    with tempfile.TemporaryDirectory() as d:
+        sdir, pdir = os.path.join(d, "s"), os.path.join(d, "p")
+        search = SE.make_search("stub", sdir, max_searches=3)           # 2 distinct queries per candidate: cap stops mid-way
+        st = PV.prove_all(StubGroq(), search, rows, pdir, log=lambda *_: None)
+        assert st["called"] == 1 and search.fresh == 3
+        search2 = SE.make_search("stub", sdir, max_searches=None)
+        st2 = PV.prove_all(StubGroq(), search2, rows, pdir, log=lambda *_: None)
+        assert st2["cached"] == 1 and st2["called"] == 2
+        applied = PV.apply_cached(rows, pdir)
+        assert all(r["proof"]["match"] == "yes" and r["proof"]["price_low"] is not None for r in applied)
+        assert all(r["proof"]["n_vendors"] == 0 for r in applied)          # stub snippets never name the service, so the floor drops them
+        assert PV.eligible([dict(r, jev_removed="x") for r in rows]) == []
+        assert PV.eligible([dict(r, grounded_fields=[]) for r in rows]) == []
+
+
+def test_dashboard_embeds_top_and_survives_a_missing_one() -> None:
+    with tempfile.TemporaryDirectory() as d:
+        json.dump({"unique": [], "n_raw": 0, "saturation": []}, open(os.path.join(d, "unique.json"), "w"))
+        assert DB.collect(d, stub=True)["top"] is None
+        res = TOP.build([_proved("alpha one", 3)], set())
+        json.dump(res, open(os.path.join(d, "top.json"), "w"))
+        data = DB.collect(d, stub=True)
+        assert data["top"]["picks"] == ["id_alpha one"]
+        page = DB.render(data)
+        assert "topSection" in page and page.count("</script>") == 1
 
 
 TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
