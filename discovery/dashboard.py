@@ -120,6 +120,7 @@ def collect(out_dir: str, stub: bool) -> Dict[str, object]:
         "questions": {q.id: {"text": q.text, "family": q.family} for q in ADMITTED},
         "jev": jev,
         "top": _read(os.path.join(out_dir, "top.json")),
+        "breakers": _read(os.path.join(out_dir, "breakers.json")),
     }
 
 

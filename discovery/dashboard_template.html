@@ -426,6 +426,35 @@ function topCard(e, picked, rank) {
     h("p", {class: "small"}, e.measured.map(x => h("span", {class: "tag m"}, "measured: " + x)), " ", e.guessed.map(x => h("span", {class: "tag g"}, "guessed: " + x))),
     picked ? h("div", {class: "small"}, h("p", null, h("b", null, "Test: "), e.test), h("p", null, h("b", null, "Kill rule: "), e.kill)) : null);
 }
+const BK_CLS = {PASS: "v-SURVIVES", KILL: "v-FAILS_HR", WARN: "g-B", UNPROVEN: "v-INSUFFICIENT", unstable: "v-INSUFFICIENT", untrusted: "v-INSUFFICIENT", "no evidence": "v-INSUFFICIENT"};
+const BK_VERDICT = {STANDS: "v-SURVIVES", WOUNDED: "g-B", KILLED: "v-FAILS_HR"};
+function breakersSection() {
+  const B = DATA.breakers;
+  const box = h("article", {class: "topsec"}, h("h2", null, "Make-or-break test (Jev)"));
+  if (!B) {
+    box.append(h("div", {class: "empty"}, "Not run yet. Run `python3 discover.py breakers --provider live`, then `dashboard`."));
+    return box;
+  }
+  const c = B.counts, qs = Object.keys(B.questions);
+  box.append(h("p", null, h("span", {class: "tag v-SURVIVES"}, "STANDS " + c.STANDS), " ", h("span", {class: "tag g-B"}, "WOUNDED " + c.WOUNDED), " ", h("span", {class: "tag v-FAILS_HR"}, "KILLED " + c.KILLED)));
+  box.append(h("p", {class: "small"}, qs.length + " typed questions per venture, answered by Jev " + B.runs + " times with shuffled options, from raw search results gathered per question. STANDS = no kill and a passed answer on both critical questions (" + B.critical.join(", ") + "). Untrusted, unstable or unanswered questions can neither kill nor save."));
+  if (!B.complete) box.append(h("p", {class: "small fail"}, "Incomplete run: " + B.stopped));
+  const pc = x => x == null ? "-" : Math.round(x * 100) + "%";
+  box.append(h("h3", null, "Can each question be trusted?"), h("div", {class: "wrapx"}, h("table", null,
+    h("thead", null, h("tr", null, ["Question", "Probe accuracy", "Escapes on irrelevant text", "Stable", "Trusted"].map(x => h("th", null, x)))),
+    h("tbody", null, qs.map(q => { const v = B.questions[q]; return h("tr", null, h("td", null, h("b", null, q), h("br"), h("span", {class: "small mute"}, v.text)),
+      h("td", {class: "n"}, pc(v.probe_accuracy) + " (" + v.probes + ")"), h("td", {class: "n"}, pc(v.null_escape)), h("td", {class: "n"}, pc(v.stability)),
+      h("td", {class: v.trusted ? "pass" : "fail"}, v.trusted ? "yes" : "no: " + v.why_untrusted.join("; "))); })))));
+  box.append(h("h3", null, "Verdicts"), h("div", {class: "wrapx"}, h("table", null,
+    h("thead", null, h("tr", null, h("th", null, "Venture"), h("th", null, "Verdict"), qs.map(q => h("th", {class: "small"}, q)))),
+    h("tbody", null, B.rows.map(r => h("tr", null,
+      h("td", null, h("b", null, (r.picked ? "★ " : "") + r.offer), h("br"), h("span", {class: "small mute"}, r.buyer + " · " + r.proof_label),
+        h("details", null, h("summary", {class: "small"}, "evidence links"), Object.entries(r.urls).map(([f, us]) => h("div", {class: "small"}, h("b", null, f + ": "),
+          us.length ? us.map((u, i) => [i ? ", " : "", isHttp(u) ? h("a", {href: u, target: "_blank", rel: "noopener noreferrer"}, (u.split("/")[2] || u).replace(/^www\./, "")) : u]) : "none")))),
+      h("td", null, tag(BK_VERDICT[r.verdict], r.verdict)),
+      qs.map(q => { const cell = r.cells[q]; return h("td", {class: "small", title: cell.label || ""}, tag(BK_CLS[cell.status] || "v-INSUFFICIENT", cell.status), h("br"), cell.label || ""); })))))));
+  return box;
+}
 function topSection() {
   const T = DATA.top;
   const box = h("article", {class: "topsec"}, h("h2", null, "Top " + (T ? T.top.length : 20) + " and the " + (T ? T.picks.length : 7) + " to start"));
@@ -469,7 +498,7 @@ function build() {
   if (DATA.stub) flags.push(h("span", {class: "badge warn"}, "STUB RUN: all numbers are synthetic"));
   if (DATA.preview) flags.push(h("span", {class: "badge warn"}, "Preview: run dedupe to save clustering"));
   if (DATA.queries_done < DATA.queries_total) flags.push(h("span", {class: "badge warn"}, "Partial run: " + DATA.queries_done + "/" + DATA.queries_total + " queries"));
-  app.replaceChildren(h("h1", null, "Venture discovery results"), h("p", {class: "mute"}, "Groq proposes, the arithmetic screen decides, Jev tags, cited pages grade the evidence."), h("div", {class: "badges"}, flags), topSection(), view());
+  app.replaceChildren(h("h1", null, "Venture discovery results"), h("p", {class: "mute"}, "Groq proposes, the arithmetic screen decides, Jev tags, cited pages grade the evidence."), h("div", {class: "badges"}, flags), breakersSection(), topSection(), view());
 }
 function refresh(scroll) {
   const app = $("#app");

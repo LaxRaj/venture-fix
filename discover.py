@@ -291,6 +291,23 @@ def cmd_top(args) -> None:
     print(f"wrote {os.path.relpath(dest, HERE)} and {os.path.relpath(os.path.join(o, 'top.json'), HERE)}")
 
 
+def cmd_breakers(args) -> None:
+    from discovery import breakers as BK
+    o = out_dir(args.provider)
+    top = _read(os.path.join(o, "top.json"))
+    ventures = [dict(e, picked=e["id"] in top["picks"]) for e in top["top"]]
+    search = SE.make_search(args.provider, os.path.join(o, "cache_search"), args.max_searches)
+    print(f"make-or-break test on {len(ventures)} ventures: {len(BK.QUESTIONS)} questions x {BK.RUNS} shuffled runs, "
+          f"plus {len(BK.PROBES)} probes and a null control")
+    res = BK.run(ventures, search, args.provider, os.path.join(o, "cache_breakers"))
+    _write(os.path.join(o, "breakers.json"), res)
+    dest = os.path.join(HERE, "analysis", "venture_breakers_stub.md" if args.provider == "stub" else "venture_breakers.md")
+    with open(dest, "w", encoding="utf-8") as fh:
+        fh.write(BK.markdown(res, args.provider == "stub"))
+    print(f"counts {res['counts']}; trusted questions: {[q for q, v in res['questions'].items() if v['trusted']]}")
+    print(f"searches paid {getattr(search, 'fresh', 0)}, cached {getattr(search, 'hits', 0)}; wrote {os.path.relpath(dest, HERE)}")
+
+
 def cmd_dashboard(args) -> None:
     path = DB.build(out_dir(args.provider), stub=args.provider == "stub")
     print(f"wrote {os.path.relpath(path, HERE)}  (open it in a browser; no server needed)")
@@ -340,6 +357,10 @@ def main(argv=None) -> int:
     tp = sub.add_parser("top", help="score proved survivors, write the top 20 and the 7 picks")
     tp.add_argument("--provider", choices=("live", "stub"), default="stub")
     tp.set_defaults(fn=cmd_top)
+    bp = sub.add_parser("breakers", help="make-or-break test: nine typed questions answered by Jev from raw search evidence")
+    bp.add_argument("--provider", choices=("live", "stub"), default="stub")
+    bp.add_argument("--max-searches", type=int, default=200, help="cap on paid search calls this run")
+    bp.set_defaults(fn=cmd_breakers)
     tc = sub.add_parser("tagcheck", help="quality-check the Jev question bank: offline coverage, then --run on the gold set")
     tc.add_argument("--provider", choices=("live", "stub"), default="stub")
     tc.add_argument("--run", action="store_true", help="send the gold set to Jev (two shuffled runs each)")

@@ -1052,6 +1052,72 @@ def test_dashboard_embeds_top_and_survives_a_missing_one() -> None:
         assert "topSection" in page and page.count("</script>") == 1
 
 
+def test_breakers_bank_is_admitted_and_complete() -> None:
+    from discovery import breakers as BK
+    assert len(BK.QUESTIONS) == 9 and all(not BK.admission_failures(q) for q in BK.QUESTIONS)
+    assert all(q.source in BK.SOURCES for q in BK.QUESTIONS) and set(BK.CRITICAL) <= set(BK.BY_ID)
+    for fields, expected in BK.PROBES:
+        assert set(fields) == set(BK.SOURCES)
+        for q, key in expected.items():
+            assert key in {o.key for o in BK.BY_ID[q].substantive}
+    bad = BK.Question("x", "pain", "How many buyers will likely pay?", "demand_text", "", BK.BY_ID["reach"].options)
+    assert {"T1", "T2"} <= set(BK.admission_failures(bad))
+
+
+def _qual(**untrusted):
+    from discovery import breakers as BK
+    return {q.id: {"trusted": q.id not in untrusted} for q in BK.QUESTIONS}
+
+
+def test_breakers_judge_kills_stands_and_wounds() -> None:
+    from discovery import breakers as BK
+    good = {"demand_signal": "hiring", "reach": "association", "substitute": "human", "billing": "project"}
+    j = BK.judge(good, _qual())
+    assert j["verdict"] == "STANDS" and j["warns"] == ["billing"]
+    assert BK.judge(dict(good, regulation="licence"), _qual())["verdict"] == "KILLED"
+    assert BK.judge(dict(good, regulation="licence"), _qual(regulation=1))["verdict"] == "STANDS"     # untrusted cannot kill
+    assert BK.judge(dict(good, reach="escape"), _qual())["verdict"] == "WOUNDED"
+    assert BK.judge(dict(good, reach="unstable"), _qual())["verdict"] == "WOUNDED"
+    assert BK.judge(good, _qual(reach=1))["verdict"] == "WOUNDED"                                      # untrusted cannot save
+    assert BK.judge(dict(good, demand_signal="vendors"), _qual())["critical_unproven"] == ["demand_signal"]
+    assert BK.judge({}, _qual())["cells"]["reach"]["status"] == "no evidence"
+
+
+def test_breakers_quality_needs_probes_null_escapes_and_stability() -> None:
+    from discovery import breakers as BK
+    probes = [dict(exp) for _, exp in BK.PROBES]
+    nulls = [{q.id: "escape" for q in BK.QUESTIONS}] * 5
+    ventures = [{q.id: "escape" for q in BK.QUESTIONS}] * 4
+    q = BK.quality(probes, nulls, ventures)
+    assert q["reach"]["trusted"] and q["reach"]["probe_accuracy"] == 1.0 and q["reach"]["probes"] == 3
+    wrong = [dict(p, reach="community") for p in probes]
+    assert not BK.quality(wrong, nulls, ventures)["reach"]["trusted"]
+    chatty = [dict(n, reach="association") for n in nulls]
+    assert "irrelevant" in BK.quality(probes, chatty, ventures)["reach"]["why_untrusted"][0]
+    shaky = [dict(v, reach="unstable") for v in ventures]
+    assert not BK.quality(probes, nulls, shaky)["reach"]["trusted"]
+
+
+def test_breakers_run_end_to_end_stub_and_cache() -> None:
+    from discovery import breakers as BK
+    ventures = [{"id": f"v{i}", "offer": f"Offer {i}", "buyer": "dentists", "label": "Partial", "score": 50 - i, "picked": i == 0} for i in range(3)]
+    with tempfile.TemporaryDirectory() as d:
+        s = SE.make_search("stub", os.path.join(d, "s"))
+        res = BK.run(ventures, s, "stub", os.path.join(d, "c"), log=lambda *_: None)
+        assert res["complete"] and len(res["rows"]) == 3 and sum(res["counts"].values()) == 3
+        assert set(res["questions"]) == {q.id for q in BK.QUESTIONS}
+        paid = s.fresh
+        s2 = SE.make_search("stub", os.path.join(d, "s"), max_searches=0)
+        res2 = BK.run(ventures, s2, "stub", os.path.join(d, "c"), log=lambda *_: None)
+        assert s2.fresh == 0 and res2["rows"] == res["rows"] and paid > 0              # rerun is free
+        capped = BK.run(ventures, SE.make_search("stub", os.path.join(d, "s3"), max_searches=2), "stub", os.path.join(d, "c3"), log=lambda *_: None)
+        assert not capped["complete"] and "cap" in capped["stopped"]
+        text = BK.markdown(capped, True)
+        assert "STUB RUN" in text and "Incomplete run" in text
+        page = DB.render(dict(DB.collect(d, stub=True), breakers=res))
+        assert "breakersSection" in page and page.count("</script>") == 1
+
+
 TESTS = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
 
 if __name__ == "__main__":
